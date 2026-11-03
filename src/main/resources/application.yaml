@@ -1,0 +1,26 @@
+spring:
+  application:
+    name: dnd-combat-tracker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/dnd_combat_tracker}
+    username: ${DB_USERNAME:dnd}
+    password: ${DB_PASSWORD:}
+  flyway:
+    enabled: true
+    fail-on-missing-locations: false
+server:
+  port: ${SERVER_PORT:8080}
+management:
+  endpoints:
+    access:
+      default: none
+    web:
+      exposure:
+        include: health
+  endpoint:
+    health:
+      access: read-only
+      probes:
+        enabled: false
+      show-details: never
+      show-components: never
