@@ -7,5 +7,5 @@
 - Keep one deployable modular monolith. Organize future business modules by capability beneath `io.github.oldgrot.dndcombattracker`, with internal domain/application/infrastructure boundaries as needed. Bootstrap wiring belongs in `bootstrap`.
 - Do not introduce speculative domain classes, game rules, frontend, authentication, messaging, caches, or distributed infrastructure.
 - Keep configuration in environment variables; never commit credentials or local `.env` files. Expose only actuator health without diagnostic details.
-- Test real behavior and database integration; do not substitute an in-memory database for PostgreSQL or disable Flyway to pass tests.
+- Test real behavior and database integration; do not substitute an in-memory database for PostgreSQL or disable Liquibase to pass tests.
 - Update README when commands or configuration change. PRs must state design choices, actual checks and limitations.

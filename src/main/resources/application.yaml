@@ -5,9 +5,9 @@ spring:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/dnd_combat_tracker}
     username: ${DB_USERNAME:dnd}
     password: ${DB_PASSWORD:}
-  flyway:
+  liquibase:
     enabled: true
-    fail-on-missing-locations: false
+    change-log: classpath:db/changelog/db.changelog-master.yaml
 server:
   port: ${SERVER_PORT:8080}
 management:
