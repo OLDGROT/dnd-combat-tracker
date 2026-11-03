@@ -8,7 +8,7 @@ import java.sql.Connection;
 import java.time.Duration;
 import javax.sql.DataSource;
 
-import org.flywaydb.core.Flyway;
+import liquibase.integration.spring.SpringLiquibase;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -42,16 +42,34 @@ class ApplicationSmokeTest {
     }
 
     @Test
-    void contextStartsWithFreshPostgresAndFlyway() throws Exception {
+    void contextStartsWithFreshPostgresAndLiquibase() throws Exception {
         assertThat(context.getBean(CombatTrackerApplication.class)).isNotNull();
-        Flyway flyway = context.getBean(Flyway.class);
-        assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().pending()).isEmpty();
         try (Connection connection = context.getBean(DataSource.class).getConnection();
              var statement = connection.createStatement();
-             var rows = statement.executeQuery("select count(*) from flyway_schema_history")) {
+             var rows = statement.executeQuery("""
+                     select count(*), min(exectype)
+                     from databasechangelog
+                     where id = '000-bootstrap' and author = 'dnd-combat-tracker'
+                     """)) {
             assertThat(rows.next()).isTrue();
-            assertThat(rows.getInt(1)).isZero();
+            assertThat(rows.getInt(1)).isOne();
+            assertThat(rows.getString(2)).isEqualTo("EXECUTED");
+        }
+    }
+
+    @Test
+    void repeatedLiquibaseRunDoesNotApplyBootstrapChangeSetAgain() throws Exception {
+        context.getBean(SpringLiquibase.class).afterPropertiesSet();
+
+        try (Connection connection = context.getBean(DataSource.class).getConnection();
+             var statement = connection.createStatement();
+             var rows = statement.executeQuery("""
+                     select count(*)
+                     from databasechangelog
+                     where id = '000-bootstrap' and author = 'dnd-combat-tracker'
+                     """)) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isOne();
         }
     }
 
