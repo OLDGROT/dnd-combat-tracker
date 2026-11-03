@@ -8,11 +8,13 @@ import java.sql.Connection;
 import java.time.Duration;
 import javax.sql.DataSource;
 
-import org.flywaydb.core.Flyway;
-import org.junit.jupiter.api.AfterAll;
-import org.junit.jupiter.api.BeforeAll;
+import liquibase.integration.spring.SpringLiquibase;
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.SpringApplication;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.test.context.DynamicPropertyRegistry;
+import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -20,44 +22,54 @@ import org.testcontainers.postgresql.PostgreSQLContainer;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
 class ApplicationSmokeTest {
     @Container
     static final PostgreSQLContainer POSTGRES = new PostgreSQLContainer("postgres:17.7");
 
-    private static ConfigurableApplicationContext context;
-    private static int port;
+    @Autowired
+    private ConfigurableApplicationContext context;
 
-    // Boot 4's SpringExtension requires JUnit 6. Start the real application directly
-    // to retain Issue #1's JUnit 5 requirement without downgrading Spring Boot.
-    @BeforeAll
-    static void startApplication() {
-        context = SpringApplication.run(CombatTrackerApplication.class,
-                "--server.port=0",
-                "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
-                "--spring.datasource.username=" + POSTGRES.getUsername(),
-                "--spring.datasource.password=" + POSTGRES.getPassword());
-        port = context.getEnvironment().getRequiredProperty("local.server.port", Integer.class);
+    @LocalServerPort
+    private int port;
+
+    @DynamicPropertySource
+    static void databaseProperties(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+        registry.add("spring.datasource.username", POSTGRES::getUsername);
+        registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
-    @AfterAll
-    static void stopApplication() {
-        if (context != null) {
-            context.close();
+    @Test
+    void contextStartsWithFreshPostgresAndLiquibase() throws Exception {
+        assertThat(context.getBean(CombatTrackerApplication.class)).isNotNull();
+        try (Connection connection = context.getBean(DataSource.class).getConnection();
+             var statement = connection.createStatement();
+             var rows = statement.executeQuery("""
+                     select count(*), min(exectype)
+                     from databasechangelog
+                     where id = '000-bootstrap' and author = 'dnd-combat-tracker'
+                     """)) {
+            assertThat(rows.next()).isTrue();
+            assertThat(rows.getInt(1)).isOne();
+            assertThat(rows.getString(2)).isEqualTo("EXECUTED");
         }
     }
 
     @Test
-    void contextStartsWithFreshPostgresAndFlyway() throws Exception {
-        assertThat(context.getBean(CombatTrackerApplication.class)).isNotNull();
-        Flyway flyway = context.getBean(Flyway.class);
-        assertThat(flyway.validateWithResult().validationSuccessful).isTrue();
-        assertThat(flyway.info().pending()).isEmpty();
+    void repeatedLiquibaseRunDoesNotApplyBootstrapChangeSetAgain() throws Exception {
+        context.getBean(SpringLiquibase.class).afterPropertiesSet();
+
         try (Connection connection = context.getBean(DataSource.class).getConnection();
              var statement = connection.createStatement();
-             var rows = statement.executeQuery("select count(*) from flyway_schema_history")) {
+             var rows = statement.executeQuery("""
+                     select count(*)
+                     from databasechangelog
+                     where id = '000-bootstrap' and author = 'dnd-combat-tracker'
+                     """)) {
             assertThat(rows.next()).isTrue();
-            assertThat(rows.getInt(1)).isZero();
+            assertThat(rows.getInt(1)).isOne();
         }
     }
 

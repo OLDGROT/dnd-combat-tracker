@@ -66,7 +66,7 @@ Compose публикует PostgreSQL только на loopback-интерфе�
 
 Smoke-тесты проверяют запуск контекста на чистой базе, валидацию Flyway и пустую историю миграций, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. GitHub Actions выполняет сборку на PR в `main` и поддерживает ручной запуск. Запуск при push в `main` добавляется в PR #7. CI не требует учётных данных проекта. Фактические результаты проверок указываются в описании каждого PR.
 
-## Процесс разработки: Codex Cloud → Issue → PR → ревью → слияние
+The smoke suite checks application context startup against a fresh database, Liquibase changelog execution and idempotent re-execution, an HTTP health response of `UP` without details, and non-exposure of other actuator endpoints. GitHub Actions runs the same build on pull requests targeting `main`, pushes to `main`, and supports manual dispatch. No credentials are required by CI. Human review and merging remain the maintainer's responsibility.
 
 1. Подключите репозиторий к Codex Cloud и подготовьте среду с JDK 21, Docker и сетевым доступом к зависимостям. Перед работой прочитайте [AGENTS.md](AGENTS.md), задачу и критерии приёмки.
 2. Создайте отдельную ветку от актуального `main`. Ограничьте изменения задачей; учитывайте её зависимости и не описывайте ещё не реализованные возможности как готовые.
