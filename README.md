@@ -1,72 +1,84 @@
-# D&D Combat Tracker — backend bootstrap
+# D&D Combat Tracker — основа серверного приложения
 
-Issue #1 establishes infrastructure for a future independent combat domain service within a DM tools ecosystem. This is one deployable modular monolith. It has no combat entities, game rules, business REST API, frontend, authentication, or distributed infrastructure.
+Проект содержит инфраструктуру будущего сервиса боевой системы D&D в экосистеме инструментов ведущего. Это один развёртываемый модульный монолит. Боевые сущности, игровые правила, прикладной REST API, интерфейс пользователя, аутентификация и распределённая инфраструктура пока не реализованы.
 
-## Prerequisites
+## Текущий стек и связанные задачи
 
-- JDK 21 (`java -version`)
-- Docker Engine with Docker Compose v2; the daemon must be running for both local PostgreSQL and automated tests
-- Internet access to Maven Central and Docker Hub on the first build
+Используются Java 21, Spring Boot 4.1.2, PostgreSQL 17.7, JDBC, Flyway, Maven Wrapper, Docker Compose, JUnit Jupiter и Testcontainers. Версии библиотек в основном управляются Spring Boot.
 
-Maven 3.9.11 is downloaded by the committed Maven Wrapper (SHA-256 verified); no global Maven installation is needed. Windows users can use `mvnw.cmd` instead of `./mvnw`.
+В текущей реализации JUnit Jupiter закреплён на 5.14.4, а тесты запускают контекст программно: стандартная интеграция Spring Boot 4 требует JUnit 6. Переход на управляемый BOM тестовый стек и `@SpringBootTest` подготовлен в [PR #7](https://github.com/OLDGROT/dnd-combat-tracker/pull/7), но ещё не включён в основу этой ветки.
 
-## Start locally
+Переход с Flyway на Liquibase предусмотрен в [issue #4](https://github.com/OLDGROT/dnd-combat-tracker/issues/4), а добавление Codex Skills — в [issue #5](https://github.com/OLDGROT/dnd-combat-tracker/issues/5). Liquibase и проектные Skills пока отсутствуют. После завершения этих задач документацию нужно актуализировать в рамках [issue #6](https://github.com/OLDGROT/dnd-combat-tracker/issues/6).
 
-From the repository root, in one shell:
+## Требования к среде
+
+- JDK 21: проверьте `java -version` и `javac -version`; одной JRE недостаточно.
+- Docker Engine с Docker Compose v2. Docker должен работать для локальной PostgreSQL и автоматических тестов.
+- Доступ к Maven Central и Docker Hub при первой сборке.
+
+Maven Wrapper из репозитория загружает Maven 3.9.11 с проверкой SHA-256. Устанавливать Maven отдельно не нужно. В Windows используйте `mvnw.cmd` вместо `./mvnw`.
+
+## Локальный запуск
+
+В корне репозитория задайте локальный пароль и запустите базу и приложение. Пароль можно создать командой из примера или задать самостоятельно безопасным способом.
 
 ```sh
-# Generate a local password, or set DB_PASSWORD securely yourself.
 export DB_PASSWORD="$(openssl rand -hex 24)"
 docker compose up -d --wait postgres
 ./mvnw spring-boot:run
 ```
 
-In another shell:
+В другом терминале проверьте состояние:
 
 ```sh
 curl --fail http://localhost:8080/actuator/health
 # {"status":"UP"}
 ```
 
-Stop the application with Ctrl-C. Stop PostgreSQL with `docker compose down`. Data persists in the named volume. `docker compose down -v` permanently deletes local database data; use it only when you intentionally want a fresh database. If retaining the volume, retain the same password securely: changing `DB_PASSWORD` does not change an existing database user's password.
+Остановите приложение сочетанием Ctrl-C, а PostgreSQL — командой `docker compose down`. Данные сохраняются в именованном томе. Команда `docker compose down -v` безвозвратно удаляет локальные данные; используйте её только для намеренного создания чистой базы. Если сохраняете том, сохраните и прежний пароль: изменение `DB_PASSWORD` не меняет пароль пользователя уже созданной базы.
 
-For a packaged application:
+Для запуска упакованного приложения сначала выполните проверку и сборку. Перед запуском JAR оставьте PostgreSQL работающей и `DB_PASSWORD` экспортированной:
 
 ```sh
 ./mvnw --batch-mode --no-transfer-progress clean verify
-# Keep DB_PASSWORD exported and PostgreSQL running.
 java -jar target/dnd-combat-tracker-0.0.1-SNAPSHOT.jar
 ```
 
-### Configuration
+### Конфигурация
 
-| Variable | Default | Purpose |
+| Переменная | Значение по умолчанию | Назначение |
 | --- | --- | --- |
 | `DB_URL` | `jdbc:postgresql://localhost:5432/dnd_combat_tracker` | JDBC URL |
-| `DB_USERNAME` | `dnd` | Database user |
-| `DB_PASSWORD` | Empty in the app; required by Compose | Supply a password securely; none is committed |
-| `DB_PORT` | `5432` | Compose host port only; if changed, also set `DB_URL` |
-| `SERVER_PORT` | `8080` | Application HTTP port |
+| `DB_USERNAME` | `dnd` | Пользователь базы данных |
+| `DB_PASSWORD` | Пустое в приложении; обязательно для Compose | Задайте пароль безопасным способом; пароль не хранится в репозитории |
+| `DB_PORT` | `5432` | Порт PostgreSQL на хосте для Compose; при изменении также задайте `DB_URL` |
+| `SERVER_PORT` | `8080` | HTTP-порт приложения |
 
-Compose binds PostgreSQL to loopback only. Its database/user are `dnd_combat_tracker`/`dnd`. The application fails startup if the database is unavailable or credentials are wrong. Export variables for the Java process. Compose reads an optional ignored `.env`, but Java does not automatically load that file. Do not commit `.env` files or credentials. Local defaults are for development; use externally provisioned credentials and database settings for deployment.
+Compose публикует PostgreSQL только на loopback-интерфейсе. Имя базы — `dnd_combat_tracker`, пользователь — `dnd`. Приложение не запустится, если база недоступна или учётные данные неверны. Экспортируйте переменные для процесса Java. Compose может читать необязательный игнорируемый `.env`, однако Java не загружает его автоматически. Не добавляйте `.env` и учётные данные в коммиты. Локальные значения предназначены для разработки; при развёртывании задавайте внешние учётные данные и параметры подключения.
 
-## Tests and CI
+## Тесты и CI
 
 ```sh
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-This compiles production and test code, runs JUnit Jupiter tests, and packages the executable JAR. Tests start a disposable PostgreSQL 17.7 container with generated credentials; they do not use the Compose database or require `DB_PASSWORD`. Docker is required: missing Docker is a test failure, not a silent skip.
+Команда компилирует основной и тестовый код, выполняет тесты JUnit Jupiter и собирает исполняемый JAR. Тесты запускают временную PostgreSQL 17.7 со сгенерированными учётными данными. Они не используют базу Compose и не требуют `DB_PASSWORD`. Отсутствие Docker приводит к ошибке тестов, а не к их скрытому пропуску.
 
-The smoke suite checks application context startup against a fresh database, Flyway validation and empty schema history, an HTTP health response of `UP` without details, and non-exposure of other actuator endpoints. GitHub Actions runs the same build on pull requests targeting `main` and supports manual dispatch. No credentials are required by CI. Human review and merging remain the maintainer's responsibility.
+Smoke-тесты проверяют запуск контекста на чистой базе, валидацию Flyway и пустую историю миграций, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. GitHub Actions выполняет сборку на PR в `main` и поддерживает ручной запуск. Запуск при push в `main` добавляется в PR #7. CI не требует учётных данных проекта. Фактические результаты проверок указываются в описании каждого PR.
 
-## Design decisions
+## Процесс разработки: Codex Cloud → Issue → PR → ревью → слияние
 
-- Java 21 and released Spring Boot 4.1.2; Spring Boot manages compatible JDBC, validation, Flyway, and Testcontainers versions. JUnit Jupiter is explicitly pinned to 5.14.4 to honor Issue #1's JUnit 5 requirement (Boot 4 defaults to JUnit 6). The smoke suite starts and closes the real Spring application programmatically because Boot 4's SpringExtension requires JUnit 6.
-- `io.github.oldgrot.dndcombattracker.bootstrap` contains application wiring. The root package is the component-scan boundary. Future capability modules should be siblings of `bootstrap`, with internal domain/application/infrastructure boundaries when needed. Empty speculative modules and multiple deployables are deliberately avoided.
-- JDBC supplies the connection pool without introducing an ORM or speculative entities. PostgreSQL is used in development and tests to avoid in-memory database differences.
-- Flyway runs on startup. There are no application migrations yet because there is no application schema. Flyway creates its own history table on a fresh database; missing migration locations are allowed explicitly. The first real schema change should add a versioned migration under `src/main/resources/db/migration`. No baseline migration or automatic baselining of existing schemas is needed.
-- Only actuator health is enabled and exposed. Health includes the database check but never returns component details. Validation is available for future input boundaries without introducing business endpoints.
-- No Kafka, Redis, Kubernetes, discovery, gateway, or authentication is included.
+1. Подключите репозиторий к Codex Cloud и подготовьте среду с JDK 21, Docker и сетевым доступом к зависимостям. Перед работой прочитайте [AGENTS.md](AGENTS.md), задачу и критерии приёмки.
+2. Создайте отдельную ветку от актуального `main`. Ограничьте изменения задачей; учитывайте её зависимости и не описывайте ещё не реализованные возможности как готовые.
+3. Выполните проверку Maven. При сетевых или инфраструктурных ограничениях укажите точную причину, какие проверки не запустились и что осталось непроверенным.
+4. Откройте PR в `main` по [шаблону](.github/pull_request_template.md). Пишите Markdown-документацию, сообщения коммитов, описания и комментарии к PR и коммитам на русском. Технические идентификаторы и код сохраняйте в оригинальном виде.
+5. Дождитесь CI и человеческого code review. Исправления оформляйте коммитами в той же ветке и обновляйте описание PR с результатами проверок.
+6. Решение о слиянии принимает человек. Агент не выполняет merge, не включает auto-merge и не отправляет изменения непосредственно в `main`.
 
-See [AGENTS.md](AGENTS.md) for development constraints and the PR template for review evidence.
+## Архитектурные решения
+
+- Пакет `io.github.oldgrot.dndcombattracker.bootstrap` содержит настройку запуска. Корневой пакет задаёт границу сканирования компонентов. Будущие функциональные модули располагаются рядом с `bootstrap`; при необходимости внутри них выделяются domain/application/infrastructure. Пустые модули и дополнительные развёртываемые сервисы заранее не создаются.
+- JDBC предоставляет пул соединений без ORM и предположительных сущностей. В разработке и тестах используется PostgreSQL, чтобы избежать отличий от базы в памяти.
+- Flyway запускается при старте. Прикладных миграций пока нет, поскольку прикладная схема ещё не создана. На чистой базе Flyway создаёт собственную таблицу истории; отсутствие каталога миграций явно разрешено. Пока используется Flyway, первую реальную миграцию следует добавить в `src/main/resources/db/migration`. Начальная baseline-миграция и автоматический baseline существующих схем не нужны. Этот раздел потребуется обновить после issue #4.
+- Из actuator включён и опубликован только health. Он проверяет в том числе базу данных, но не возвращает детали компонентов. Валидация доступна для будущих входных данных без добавления прикладных endpoints.
+- Kafka, Redis, Kubernetes, обнаружение сервисов, API Gateway и аутентификация не добавлены.

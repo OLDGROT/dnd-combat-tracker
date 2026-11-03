@@ -1,10 +1,12 @@
-# Development guidelines
+# Правила разработки
 
-- Use Java 21 and the committed Maven Wrapper. Run `./mvnw -B clean verify` before a PR; Docker must be running for Testcontainers. Do not silently skip tests.
-- Read the issue and acceptance criteria first. Limit changes to the requested issue.
-- Work in a dedicated feature branch, open a PR targeting `main`, and leave merging to a human. Never push directly to `main`.
-- Keep one deployable modular monolith. Organize future business modules by capability beneath `io.github.oldgrot.dndcombattracker`, with internal domain/application/infrastructure boundaries as needed. Bootstrap wiring belongs in `bootstrap`.
-- Do not introduce speculative domain classes, game rules, frontend, authentication, messaging, caches, or distributed infrastructure.
-- Keep configuration in environment variables; never commit credentials or local `.env` files. Expose only actuator health without diagnostic details.
-- Test real behavior and database integration; do not substitute an in-memory database for PostgreSQL or disable Flyway to pass tests.
-- Update README when commands or configuration change. PRs must state design choices, actual checks and limitations.
+- Используйте Java 21 и Maven Wrapper из репозитория. Перед PR выполните `./mvnw -B clean verify`; для Testcontainers должен работать Docker. Не пропускайте тесты скрытно.
+- Сначала прочитайте задачу и критерии приёмки. Ограничивайте изменения этой задачей и соблюдайте указанные зависимости.
+- Работайте в отдельной feature-ветке и открывайте PR в `main`. Слияние выполняет человек после ревью. Агенту запрещены merge, включение auto-merge и прямой push в `main`.
+- Основной язык всех новых и обновляемых Markdown-документов — русский. Сообщения коммитов, заголовки и описания PR, комментарии к PR и коммитам также пишите на русском.
+- Код, API, имена классов и файлов, названия технологий, YAML-ключи и команды сохраняйте в оригинальном виде. В YAML frontmatter навыков сохраняйте корректный формат и совместимые с Codex поля `name` и `description`.
+- Сохраняйте один развёртываемый модульный монолит. Будущие функциональные модули размещайте внутри `io.github.oldgrot.dndcombattracker`; при необходимости выделяйте внутри них domain/application/infrastructure. Настройка запуска относится к `bootstrap`.
+- Не добавляйте предположительные доменные классы, игровые правила, интерфейс пользователя, аутентификацию, обмен сообщениями, кеши или распределённую инфраструктуру вне явно запрошенной задачи.
+- Храните конфигурацию в переменных окружения. Никогда не добавляйте учётные данные и локальные `.env` в коммиты. Публикуйте только actuator health без диагностических деталей.
+- Проверяйте реальное поведение и интеграцию с базой данных. Не заменяйте PostgreSQL базой в памяти и не отключайте Flyway ради прохождения тестов. При смене инструмента миграций в отдельной задаче сохраняйте проверку реальных миграций.
+- Обновляйте README при изменении команд или конфигурации. В PR описывайте проектные решения, фактически выполненные проверки и ограничения. Отдельно указывайте не запущенные и неуспешные проверки; не обещайте непроверенные результаты.
