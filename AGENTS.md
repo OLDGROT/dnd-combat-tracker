@@ -1,5 +1,6 @@
 # Development guidelines
 
+- Пишите сообщения коммитов, заголовки и описания PR, а также комментарии к PR и коммитам на русском языке.
 - Use Java 21 and the committed Maven Wrapper. Run `./mvnw -B clean verify` before a PR; Docker must be running for Testcontainers. Do not silently skip tests.
 - Read the issue and acceptance criteria first. Limit changes to the requested issue.
 - Work in a dedicated feature branch, open a PR targeting `main`, and leave merging to a human. Never push directly to `main`.
