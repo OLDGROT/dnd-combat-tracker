@@ -41,6 +41,7 @@ class ApplicationSmokeTest {
         registry.add("spring.datasource.password", POSTGRES::getPassword);
     }
 
+    // Проверяет запуск приложения на чистой PostgreSQL и регистрацию bootstrap changeset Liquibase.
     @Test
     void contextStartsWithFreshPostgresAndLiquibase() throws Exception {
         assertThat(context.getBean(CombatTrackerApplication.class)).isNotNull();
@@ -57,6 +58,7 @@ class ApplicationSmokeTest {
         }
     }
 
+    // Проверяет, что повторный запуск Liquibase не применяет bootstrap changeset второй раз.
     @Test
     void repeatedLiquibaseRunDoesNotApplyBootstrapChangeSetAgain() throws Exception {
         context.getBean(SpringLiquibase.class).afterPropertiesSet();
@@ -73,6 +75,7 @@ class ApplicationSmokeTest {
         }
     }
 
+    // Проверяет доступность health endpoint без раскрытия диагностических деталей.
     @Test
     void healthReportsUpWithoutExposingDetails() throws Exception {
         var response = get("/actuator/health");
@@ -80,6 +83,7 @@ class ApplicationSmokeTest {
         assertThat(response.body()).isEqualTo("{\"status\":\"UP\"}");
     }
 
+    // Проверяет, что остальные actuator endpoints не опубликованы наружу.
     @Test
     void otherActuatorEndpointsAreNotExposed() throws Exception {
         for (String endpoint : new String[]{"info", "env", "metrics", "beans"}) {
