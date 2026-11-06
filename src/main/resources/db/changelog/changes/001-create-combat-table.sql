@@ -12,8 +12,8 @@ CREATE TABLE Combats
     version BIGINT NOT NULL DEFAULT 0,
 
     created_at TIMESTAMPTZ NOT NULL,
-    started TIMESTAMPZ NOT NULL,
-    finished TIMESTAMPZ
-)
+    started TIMESTAMPTZ NOT NULL,
+    finished TIMESTAMPTZ
+),
 
 --rollback DROP TABLE combats;
