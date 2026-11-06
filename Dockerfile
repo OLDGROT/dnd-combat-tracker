@@ -1,19 +1,14 @@
-# Этап 1: сборка приложения
-FROM eclipse-temurin:21-jdk AS build
+# Maven is provided by the builder image; tests run in the verify job.
+FROM maven:3.9.11-eclipse-temurin-21 AS build
 
 WORKDIR /app
 
-COPY .mvn/ .mvn/
-COPY mvnw pom.xml ./
-
-RUN chmod +x mvnw
-RUN ./mvnw dependency:go-offline -B
+COPY pom.xml ./
+RUN mvn -B --no-transfer-progress dependency:go-offline
 
 COPY src/ src/
+RUN mvn -B --no-transfer-progress package -DskipTests
 
-RUN ./mvnw package -DskipTests -B
-
-# Этап 2: запуск приложения
 FROM eclipse-temurin:21-jre
 
 WORKDIR /app
