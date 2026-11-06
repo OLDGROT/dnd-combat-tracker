@@ -6,7 +6,7 @@
 
 | Таблица | PK | Главное содержимое | Связи / ограничения |
 | --- | --- | --- | --- |
-| `combats` | `id UUID` | name, status, round_number, current_combatant_id, turn_sequence, turn_state, version, created/started/finished_at | status допустим; version ≥ 0; текущий участник из того же боя |
+| `combats` | `id UUID` | name, status, round_number, current_combatant_id, version, created/started/finished_at | status допустим; version ≥ 0; текущий участник из того же боя |
 | `combatants` | `id UUID` | combat_id, character_id nullable, name, type, death_policy, initiative_total, turn_position, max/current/temporary_hp, life_state, save_successes/failures, surprised, turn_start_count, turn_end_count | FK combat_id; UNIQUE(combat_id, turn_position) для назначенных позиций; HP и счётчики в диапазоне |
 | `condition_instances` | `id UUID` | combatant_id, condition_type, source, status, applied context, optional time expiry (expiration_combatant_id, START/END, target_occurrence), optional conditional expiry | FK к владельцу; ссылки на время только в рамках того же Combat; несколько однотипных активных экземпляров разрешены |
 | `pending_resolutions` **(гипотеза)** | `id UUID` | combat_id, combatant_id, turn_sequence, kind, source reference, status, result | FK того же Combat; уникальность логической обязательной проверки; результат переживает рестарт |

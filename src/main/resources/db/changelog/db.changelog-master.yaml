@@ -6,3 +6,7 @@ databaseChangeLog:
       changes:
         - tagDatabase:
             tag: bootstrap
+
+  - includeAll:
+      path: db/changelog/changes/
+      relativeToChangelogFile: false
