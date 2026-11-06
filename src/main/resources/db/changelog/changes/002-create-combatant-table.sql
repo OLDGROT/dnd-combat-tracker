@@ -16,4 +16,4 @@ CREATE TABLE Combatants
     surprised BOOLEAN DEFAULT FALSE
 );
 
---rollback DROP TABLE combats;
+--rollback DROP TABLE combatants;

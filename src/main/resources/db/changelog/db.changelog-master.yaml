@@ -1,4 +1,12 @@
 databaseChangeLog:
+  - changeSet:
+      id: 000-bootstrap
+      author: dnd-combat-tracker
+      comment: Records the empty bootstrap schema before domain tables exist.
+      changes:
+        - tagDatabase:
+            tag: bootstrap
+
   - includeAll:
       path: db/changelog/changes/
       relativeToChangelogFile: false
