@@ -99,6 +99,5 @@ jobs:
           set -euo pipefail
           kubectl config current-context
           kubectl -n dev get secret dnd-combat-tracker-db -o name >/dev/null
-          kubectl -n dev apply -f k8s/dev/service.yaml
-          sed "s|__IMAGE__|${IMAGE}|g" k8s/dev/deployment.yaml | kubectl -n dev apply -f -
+          kubectl -n dev set image deployment/dnd-combat-tracker "app=${IMAGE}"
           kubectl -n dev rollout status deployment/dnd-combat-tracker --timeout=240s
