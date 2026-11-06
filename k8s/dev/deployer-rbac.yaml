@@ -15,10 +15,6 @@ rules:
     resources: ["deployments"]
     resourceNames: ["dnd-combat-tracker"]
     verbs: ["get", "watch", "patch"]
-  - apiGroups: [""]
-    resources: ["secrets"]
-    resourceNames: ["dnd-combat-tracker-db"]
-    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
