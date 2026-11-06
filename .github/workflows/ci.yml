@@ -37,7 +37,7 @@ jobs:
   publish:
     name: Publish image to GHCR
     needs: verify
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -65,7 +65,7 @@ jobs:
   deploy:
     name: Deploy to k3s dev
     needs: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     # Requires a trusted runner with Kubernetes credentials restricted to namespace dev.
     runs-on: [self-hosted, linux, dnd-dev]
     concurrency:
@@ -77,14 +77,14 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
-      - name: Ensure this is still the latest main commit
+      - name: Ensure this is still the latest dev commit
         id: latest
         shell: bash
         run: |
           set -euo pipefail
-          CURRENT="$(git ls-remote origin refs/heads/main | cut -f1)"
+          CURRENT="$(git ls-remote origin refs/heads/dev | cut -f1)"
           if [[ "$CURRENT" != "$GITHUB_SHA" ]]; then
-            echo "A newer commit is already on main; skipping outdated deploy."
+            echo "A newer commit is already on dev; skipping outdated deploy."
             echo "should_deploy=false" >> "$GITHUB_OUTPUT"
           else
             echo "should_deploy=true" >> "$GITHUB_OUTPUT"

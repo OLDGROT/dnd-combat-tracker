@@ -9,8 +9,9 @@
 
 ## Pipeline
 - PR в `dev` или `main`: `verify` запускает `./mvnw clean verify` на PostgreSQL Testcontainers; деплой не выполняется.
-- Push в `dev`: только `verify`.
-- **Push/merge в `main`**: `verify` → публикация Docker-образа в GHCR с тегом commit SHA → автоматический деплой в `dev` → `kubectl rollout status`.
+- **Push/merge в `dev`**: `verify` → публикация Docker-образа в GHCR с тегом commit SHA → автоматический деплой в Kubernetes namespace `dev` → `kubectl rollout status`.
+- Push/merge в `main`: только `verify`, без публикации образа и без деплоя.
+- Деплой запускается по `push` в `dev`, в том числе после слияния PR; прямой push также запустит pipeline. Чтобы разрешить деплой только после merge PR, запретить прямые push в `dev` через правила защиты ветки.
 - При ошибке тестов публикация/деплой не выполняются; при ошибке публикации не выполняется деплой.
 - Отчёты JUnit загружаются как артефакты GitHub Actions.
 - Отдельные unit/integration jobs — задача #20; пока всё проверяется одним `verify`.
