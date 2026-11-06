@@ -1,16 +1,20 @@
-name: Backend CI
+name: Backend CI/CD
+
 on:
   pull_request:
     branches: [main, dev]
   push:
     branches: [main, dev]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   verify:
+    name: Build and tests (PostgreSQL Testcontainers)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -18,5 +22,82 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Build and test with PostgreSQL Testcontainers
+      - name: Build and run all tests
         run: ./mvnw --batch-mode --no-transfer-progress clean verify
+      - name: Publish JUnit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-reports
+          path: |
+            target/surefire-reports/*.xml
+            target/failsafe-reports/*.xml
+          if-no-files-found: warn
+
+  publish:
+    name: Publish image to GHCR
+    needs: verify
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/oldgrot/dnd-combat-tracker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Export image
+        id: meta
+        run: echo "image=ghcr.io/oldgrot/dnd-combat-tracker:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    name: Deploy to k3s dev
+    needs: publish
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Requires a trusted runner with Kubernetes credentials restricted to namespace dev.
+    runs-on: [self-hosted, linux, dnd-dev]
+    concurrency:
+      group: dnd-combat-tracker-dev
+      cancel-in-progress: false
+    environment: dev
+    permissions:
+      contents: read
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ensure this is still the latest main commit
+        id: latest
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT="$(git ls-remote origin refs/heads/main | cut -f1)"
+          if [[ "$CURRENT" != "$GITHUB_SHA" ]]; then
+            echo "A newer commit is already on main; skipping outdated deploy."
+            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Apply Kubernetes manifests and verify rollout
+        if: steps.latest.outputs.should_deploy == 'true'
+        shell: bash
+        env:
+          IMAGE: ${{ needs.publish.outputs.image }}
+        run: |
+          set -euo pipefail
+          kubectl config current-context
+          kubectl -n dev get secret dnd-combat-tracker-db -o name >/dev/null
+          kubectl -n dev apply -f k8s/dev/service.yaml
+          sed "s|__IMAGE__|${IMAGE}|g" k8s/dev/deployment.yaml | kubectl -n dev apply -f -
+          kubectl -n dev rollout status deployment/dnd-combat-tracker --timeout=240s
