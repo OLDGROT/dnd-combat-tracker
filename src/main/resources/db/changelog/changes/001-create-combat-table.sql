@@ -14,6 +14,6 @@ CREATE TABLE Combats
     created_at TIMESTAMPTZ NOT NULL,
     started TIMESTAMPTZ NOT NULL,
     finished TIMESTAMPTZ
-),
+);
 
 --rollback DROP TABLE combats;

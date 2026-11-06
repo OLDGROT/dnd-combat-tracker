@@ -14,6 +14,6 @@ CREATE TABLE Combatants
     current_hp INTEGER NOT NULL,
     temporary_hp INTEGER NOT NULL DEFAULT 0,
     surprised BOOLEAN DEFAULT FALSE
-),
+);
 
 --rollback DROP TABLE combats;
