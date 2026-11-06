@@ -2,13 +2,11 @@
 
 Проект содержит инфраструктуру будущего сервиса боевой системы D&D в экосистеме инструментов ведущего. Это один развёртываемый модульный монолит. Боевые сущности, игровые правила, прикладной REST API, интерфейс пользователя, аутентификация и распределённая инфраструктура пока не реализованы.
 
-## Текущий стек и связанные задачи
+## Текущий стек
 
-Используются Java 21, Spring Boot 4.1.2, PostgreSQL 17.7, JDBC, Flyway, Maven Wrapper, Docker Compose, JUnit Jupiter и Testcontainers. Версии библиотек в основном управляются Spring Boot.
+Используются Java 21, Spring Boot 4.1.2, PostgreSQL 17.7, JDBC, Liquibase, Maven Wrapper, Docker Compose, JUnit 6 и Testcontainers. Версии библиотек управляются Spring Boot, если в `pom.xml` не указано иное.
 
-В текущей реализации JUnit Jupiter закреплён на 5.14.4, а тесты запускают контекст программно: стандартная интеграция Spring Boot 4 требует JUnit 6. Переход на управляемый BOM тестовый стек и `@SpringBootTest` подготовлен в [PR #7](https://github.com/OLDGROT/dnd-combat-tracker/pull/7), но ещё не включён в основу этой ветки.
-
-Переход с Flyway на Liquibase предусмотрен в [issue #4](https://github.com/OLDGROT/dnd-combat-tracker/issues/4), а добавление Codex Skills — в [issue #5](https://github.com/OLDGROT/dnd-combat-tracker/issues/5). Liquibase и проектные Skills пока отсутствуют. После завершения этих задач документацию нужно актуализировать в рамках [issue #6](https://github.com/OLDGROT/dnd-combat-tracker/issues/6).
+Тестовый стек подключён через `spring-boot-starter-test`: JUnit 6 и AssertJ берутся из BOM Spring Boot. Интеграционные тесты используют `@SpringBootTest`, настоящий HTTP-сервер на случайном порту и PostgreSQL Testcontainers. Подключение к контейнеру передаётся через `@DynamicPropertySource`.
 
 ## Требования к среде
 
@@ -64,9 +62,9 @@ Compose публикует PostgreSQL только на loopback-интерфе�
 
 Команда компилирует основной и тестовый код, выполняет тесты JUnit Jupiter и собирает исполняемый JAR. Тесты запускают временную PostgreSQL 17.7 со сгенерированными учётными данными. Они не используют базу Compose и не требуют `DB_PASSWORD`. Отсутствие Docker приводит к ошибке тестов, а не к их скрытому пропуску.
 
-Smoke-тесты проверяют запуск контекста на чистой базе, валидацию Flyway и пустую историю миграций, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. GitHub Actions выполняет сборку на PR в `main` и поддерживает ручной запуск. Запуск при push в `main` добавляется в PR #7. CI не требует учётных данных проекта. Фактические результаты проверок указываются в описании каждого PR.
+Smoke-тесты проверяют запуск контекста на чистой базе, применение changelog Liquibase, идемпотентность повторного запуска, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. GitHub Actions выполняет ту же сборку для PR в `main`, push в `main` и ручного запуска. CI не требует учётных данных проекта. Фактические результаты проверок указываются в описании каждого PR.
 
-The smoke suite checks application context startup against a fresh database, Liquibase changelog execution and idempotent re-execution, an HTTP health response of `UP` without details, and non-exposure of other actuator endpoints. GitHub Actions runs the same build on pull requests targeting `main`, pushes to `main`, and supports manual dispatch. No credentials are required by CI. Human review and merging remain the maintainer's responsibility.
+## Процесс разработки: Codex Cloud → Issue → PR → ревью → слияние
 
 1. Подключите репозиторий к Codex Cloud и подготовьте среду с JDK 21, Docker и сетевым доступом к зависимостям. Перед работой прочитайте [AGENTS.md](AGENTS.md), задачу и критерии приёмки.
 2. Создайте отдельную ветку от актуального `main`. Ограничьте изменения задачей; учитывайте её зависимости и не описывайте ещё не реализованные возможности как готовые.
@@ -75,10 +73,20 @@ The smoke suite checks application context startup against a fresh database, Liq
 5. Дождитесь CI и человеческого code review. Исправления оформляйте коммитами в той же ветке и обновляйте описание PR с результатами проверок.
 6. Решение о слиянии принимает человек. Агент не выполняет merge, не включает auto-merge и не отправляет изменения непосредственно в `main`.
 
+## Codex Skills
+
+В `.agents/skills` находятся три проектных навыка:
+
+- `implement-issue` — реализует одну Issue в отдельной ветке, выполняет проверки и готовит PR;
+- `test-feature` — проверяет ветку или PR по позитивным, негативным и граничным сценариям, не изменяя production-код без согласования;
+- `review-pr` — проводит независимое read-only ревью с severity, сценарием дефекта и привязкой к коду.
+
+Навыки являются инструкциями, а не автономными агентами. Запускайте их только явным запросом, например `$implement-issue Выполни issue #12 и создай PR.` Решение о слиянии всегда остаётся за человеком; навыки не разрешают merge, auto-merge, approve или прямой push в `main`.
+
 ## Архитектурные решения
 
 - Пакет `io.github.oldgrot.dndcombattracker.bootstrap` содержит настройку запуска. Корневой пакет задаёт границу сканирования компонентов. Будущие функциональные модули располагаются рядом с `bootstrap`; при необходимости внутри них выделяются domain/application/infrastructure. Пустые модули и дополнительные развёртываемые сервисы заранее не создаются.
 - JDBC предоставляет пул соединений без ORM и предположительных сущностей. В разработке и тестах используется PostgreSQL, чтобы избежать отличий от базы в памяти.
-- Flyway запускается при старте. Прикладных миграций пока нет, поскольку прикладная схема ещё не создана. На чистой базе Flyway создаёт собственную таблицу истории; отсутствие каталога миграций явно разрешено. Пока используется Flyway, первую реальную миграцию следует добавить в `src/main/resources/db/migration`. Начальная baseline-миграция и автоматический baseline существующих схем не нужны. Этот раздел потребуется обновить после issue #4.
+- Liquibase запускается при старте и читает `src/main/resources/db/changelog/db.changelog-master.yaml`. Changeset `000-bootstrap` фиксирует пустое начальное состояние тегом `bootstrap` и не создаёт прикладных таблиц. Новые неизменяемые changesets следует размещать в `src/main/resources/db/changelog/changes`, подключать из master changelog и именовать по правилу `NNN-short-description`. Выполненный в общей среде changeset не редактируется; изменение оформляется новым changeset.
 - Из actuator включён и опубликован только health. Он проверяет в том числе базу данных, но не возвращает детали компонентов. Валидация доступна для будущих входных данных без добавления прикладных endpoints.
 - Kafka, Redis, Kubernetes, обнаружение сервисов, API Gateway и аутентификация не добавлены.
