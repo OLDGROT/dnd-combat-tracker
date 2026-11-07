@@ -42,8 +42,6 @@ jobs:
     permissions:
       contents: read
       packages: write
-    outputs:
-      image: ${{ steps.meta.outputs.image }}
     steps:
       - uses: actions/checkout@v4
       - uses: docker/login-action@v3
@@ -56,47 +54,9 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/oldgrot/dnd-combat-tracker:${{ github.sha }}
+          tags: |
+            ghcr.io/oldgrot/dnd-combat-tracker:${{ github.sha }}
+            ghcr.io/oldgrot/dnd-combat-tracker:dev-0.${{ github.run_number }}.${{ github.run_attempt }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-      - name: Export image
-        id: meta
-        run: echo "image=ghcr.io/oldgrot/dnd-combat-tracker:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
 
-  deploy:
-    name: Deploy to k3s dev
-    needs: publish
-    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
-    # Requires a trusted runner with Kubernetes credentials restricted to namespace dev.
-    runs-on: [self-hosted, linux, dnd-dev]
-    concurrency:
-      group: dnd-combat-tracker-dev
-      cancel-in-progress: false
-    environment: dev
-    permissions:
-      contents: read
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - name: Ensure this is still the latest dev commit
-        id: latest
-        shell: bash
-        run: |
-          set -euo pipefail
-          CURRENT="$(git ls-remote origin refs/heads/dev | cut -f1)"
-          if [[ "$CURRENT" != "$GITHUB_SHA" ]]; then
-            echo "A newer commit is already on dev; skipping outdated deploy."
-            echo "should_deploy=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "should_deploy=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Apply Kubernetes manifests and verify rollout
-        if: steps.latest.outputs.should_deploy == 'true'
-        shell: bash
-        env:
-          IMAGE: ${{ needs.publish.outputs.image }}
-        run: |
-          set -euo pipefail
-          kubectl config current-context
-          kubectl -n dev set image deployment/dnd-combat-tracker "app=${IMAGE}"
-          kubectl -n dev rollout status deployment/dnd-combat-tracker --timeout=240s
