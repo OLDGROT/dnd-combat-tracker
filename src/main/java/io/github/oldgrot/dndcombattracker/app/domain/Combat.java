@@ -1,13 +1,11 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
 import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
+import io.github.oldgrot.dndcombattracker.app.domain.exception.OperationNotFoundException;
 import lombok.AccessLevel;
 import lombok.Getter;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Objects;
-import java.util.UUID;
+import java.util.*;
 
 @Getter
 public class Combat {
@@ -15,7 +13,7 @@ public class Combat {
     private String name;
     private long roundNumber;
     @Getter(AccessLevel.NONE)
-    private final List<Combatant> combatants;
+    private final Set<Combatant> combatants;
     private CombatStatus status;
     private long version;
 
@@ -32,11 +30,23 @@ public class Combat {
         this.name = name.strip();
         roundNumber = 0L;
         status = CombatStatus.PREPARING;
-        combatants = new ArrayList<>();
+        combatants = new HashSet<>();
         version = 0L;
     }
 
-    public List<Combatant> getCombatants(){
-        return List.copyOf(combatants);
+    public Set<Combatant> getCombatants(){
+        return Set.copyOf(combatants);
+    }
+
+    public void addCombatant(Combatant combatant){
+        if(combatant == null) {
+            throw new NullPointerException("");
+        }
+
+        if(status == CombatStatus.FINISHED || status == CombatStatus.ARCHIVED){
+            throw  new OperationNotFoundException("");
+        }
+
+        combatants.add(combatant);
     }
 }
