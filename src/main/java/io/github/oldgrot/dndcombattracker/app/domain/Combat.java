@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class Combat {
-    private UUID id;
+    private final UUID id;
     private String name;
     private long roundNumber;
     private List<Combatant> combatants;
@@ -19,13 +19,16 @@ public class Combat {
     public Combat(UUID id, String name){
         this.id = Objects.requireNonNull(id, "Combat ID cannot be null");
 
-        if(name.isBlank() || name.isEmpty()){
-            throw new IllegalArgumentException("Combat ID cannot be null or empty");
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Combat name cannot be null or blank"
+            );
         }
 
-        this.name = name;
+        this.name = name.strip();
         roundNumber = 0L;
         status = CombatStatus.PREPARING;
         combatants = new ArrayList<>();
+        version = 0;
     }
 }
