@@ -1,15 +1,14 @@
 package io.github.oldgrot.dndcombattracker.bootstrap.unit.combat;
 
-import java.util.List;
 import java.util.UUID;
 
 import io.github.oldgrot.dndcombattracker.app.domain.Combat;
+import io.github.oldgrot.dndcombattracker.app.domain.Combatant;
 import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
-import org.springframework.test.util.ReflectionTestUtils;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -33,12 +32,21 @@ class CombatTest {
 
             Combat combat = new Combat(id, name);
 
-            assertThat(ReflectionTestUtils.getField(combat, "id")).isEqualTo(id);
-            assertThat(ReflectionTestUtils.getField(combat, "name")).isEqualTo(name.strip());
-            assertThat(ReflectionTestUtils.getField(combat, "roundNumber")).isEqualTo(0L);
-            assertThat(ReflectionTestUtils.getField(combat, "status")).isEqualTo(CombatStatus.PREPARING);
-            assertThat(ReflectionTestUtils.getField(combat, "version")).isEqualTo(0L);
-            assertThat((List<?>) ReflectionTestUtils.getField(combat, "combatants")).isEmpty();
+            assertThat(combat.getId()).isEqualTo(id);
+            assertThat(combat.getName()).isEqualTo(name.strip());
+            assertThat(combat.getRoundNumber()).isZero();
+            assertThat(combat.getStatus()).isEqualTo(CombatStatus.PREPARING);
+            assertThat(combat.getVersion()).isZero();
+            assertThat(combat.getCombatants()).isEmpty();
+        }
+
+        @Test
+        void combatantsReturnedByGetterCannotBeModified() {
+            Combat combat = new Combat(UUID.randomUUID(), "Battle");
+
+            assertThatThrownBy(() -> combat.getCombatants().add(new Combatant()))
+                    .isInstanceOf(UnsupportedOperationException.class);
+            assertThat(combat.getCombatants()).isEmpty();
         }
 
         @Test
