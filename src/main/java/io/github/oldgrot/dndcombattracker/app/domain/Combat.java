@@ -4,25 +4,27 @@ import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public class Combat {
     private UUID id;
     private String name;
-    private int roundNumber;
+    private long roundNumber;
     private List<Combatant> combatants;
     private CombatStatus status;
-    private long version;
+    private int version;
 
 
     public Combat(UUID id, String name){
-        if(id == null || name == null){
-          throw new IllegalArgumentException();
+        this.id = Objects.requireNonNull(id, "Combat ID cannot be null");
+
+        if(name.isBlank() || name.isEmpty()){
+            throw new IllegalArgumentException("Combat ID cannot be null or empty");
         }
 
-        this.id = id;
         this.name = name;
-        roundNumber = 0;
+        roundNumber = 0L;
         status = CombatStatus.PREPARING;
         combatants = new ArrayList<>();
     }
