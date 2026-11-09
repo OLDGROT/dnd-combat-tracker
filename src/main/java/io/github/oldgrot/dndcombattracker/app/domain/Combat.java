@@ -1,6 +1,7 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
 import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
+import io.github.oldgrot.dndcombattracker.app.domain.exception.InvalidCombatStateException;
 import io.github.oldgrot.dndcombattracker.app.domain.exception.OperationNotFoundException;
 import lombok.AccessLevel;
 import lombok.Getter;
@@ -39,14 +40,16 @@ public class Combat {
     }
 
     public void addCombatant(Combatant combatant){
-        if(combatant == null) {
-            throw new NullPointerException("");
-        }
+        Objects.requireNonNull(combatant, "Combatant cannot be null");
 
         if(status == CombatStatus.FINISHED || status == CombatStatus.ARCHIVED){
             throw  new OperationNotFoundException("");
         }
 
-        combatants.add(combatant);
+        if (!combatants.add(combatant)) {
+            throw new InvalidCombatStateException(
+                    "Combatant with ID " + combatant.getId() + " already exists in combat"
+            );
+        }
     }
 }
