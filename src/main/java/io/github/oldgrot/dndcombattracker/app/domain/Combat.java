@@ -11,9 +11,9 @@ public class Combat {
     private final UUID id;
     private String name;
     private long roundNumber;
-    private List<Combatant> combatants;
+    private final List<Combatant> combatants;
     private CombatStatus status;
-    private int version;
+    private long version;
 
 
     public Combat(UUID id, String name){
@@ -29,6 +29,6 @@ public class Combat {
         roundNumber = 0L;
         status = CombatStatus.PREPARING;
         combatants = new ArrayList<>();
-        version = 0;
+        version = 0L;
     }
 }

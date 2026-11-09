@@ -37,7 +37,7 @@ class CombatTest {
             assertThat(ReflectionTestUtils.getField(combat, "name")).isEqualTo(name.strip());
             assertThat(ReflectionTestUtils.getField(combat, "roundNumber")).isEqualTo(0L);
             assertThat(ReflectionTestUtils.getField(combat, "status")).isEqualTo(CombatStatus.PREPARING);
-            assertThat(ReflectionTestUtils.getField(combat, "version")).isEqualTo(0);
+            assertThat(ReflectionTestUtils.getField(combat, "version")).isEqualTo(0L);
             assertThat((List<?>) ReflectionTestUtils.getField(combat, "combatants")).isEmpty();
         }
 
