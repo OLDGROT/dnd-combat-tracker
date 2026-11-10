@@ -1,6 +1,6 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
-import lombok.AllArgsConstructor;
+
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
@@ -8,7 +8,6 @@ import java.util.Objects;
 import java.util.UUID;
 
 @Getter
-@AllArgsConstructor // пока так, потом решим как создаётся
 @EqualsAndHashCode(onlyExplicitlyIncluded = true)
 public class Combatant {
     @EqualsAndHashCode.Include
@@ -20,12 +19,12 @@ public class Combatant {
     private int temporaryHp;
     private boolean surprised;
 
-    public void Combatant(UUID id,
+    public Combatant(UUID id,
                           String name,
                           int maxHp,
                           int currentHp,
                           int temporaryHp){
-        id = Objects.requireNonNull(id,"");
+        this.id = Objects.requireNonNull(id,"");
 
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
@@ -33,10 +32,28 @@ public class Combatant {
             );
         }
 
+        this.name = name.strip();
         this.initiative = 0;
-        this.maxHp = Integer.max(0, maxHp);
-        this.currentHp = Integer.min(currentHp, this.maxHp);
-        this.temporaryHp = Integer.max(0, temporaryHp);
+        if (maxHp <= 0) {
+            throw new IllegalArgumentException(
+                    ""
+            );
+        }
+        this.maxHp = maxHp;
+
+        if (currentHp <= 0 || currentHp > maxHp) {
+            throw new IllegalArgumentException(
+                    ""
+            );
+        }
+        this.currentHp = currentHp;
+
+        if (temporaryHp < 0) {
+            throw new IllegalArgumentException(
+                    ""
+            );
+        }
+        this.temporaryHp = temporaryHp;
         this.surprised = false;
     }
 }

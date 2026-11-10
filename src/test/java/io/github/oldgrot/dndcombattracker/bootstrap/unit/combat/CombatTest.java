@@ -125,6 +125,6 @@ class CombatTest {
     }
 
     private Combatant createCombatant(UUID id, String name) {
-        return new Combatant(id, name, 10, 10, 10, 0,false);
+        return new Combatant(id, name, 10, 10, 10);
     }
 }
