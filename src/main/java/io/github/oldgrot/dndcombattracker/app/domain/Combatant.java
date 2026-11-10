@@ -18,16 +18,16 @@ public class Combatant {
     private boolean surprised;
 
     public Combatant(UUID id, String name, HitPoints hitPoints){
-        this.id = Objects.requireNonNull(id,"");
+        this.id = Objects.requireNonNull(id, "Combatant ID cannot be null");
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
-                    ""
+                    "Combatant name cannot be null or blank"
             );
         }
         this.name = name.strip();
         this.initiative = 0;
         this.surprised = false;
 
-        this.hitPoints = Objects.requireNonNull(hitPoints, "");
+        this.hitPoints = Objects.requireNonNull(hitPoints, "Combatant hit points cannot be null");
     }
 }

@@ -4,6 +4,7 @@ import java.util.UUID;
 
 import io.github.oldgrot.dndcombattracker.app.domain.Combat;
 import io.github.oldgrot.dndcombattracker.app.domain.Combatant;
+import io.github.oldgrot.dndcombattracker.app.domain.HitPoints;
 import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
 import io.github.oldgrot.dndcombattracker.app.domain.exception.InvalidCombatStateException;
 import org.junit.jupiter.api.Nested;
@@ -125,6 +126,6 @@ class CombatTest {
     }
 
     private Combatant createCombatant(UUID id, String name) {
-        return new Combatant(id, name, 10, 10, 10);
+        return new Combatant(id, name, new HitPoints(10, 10, 0));
     }
 }

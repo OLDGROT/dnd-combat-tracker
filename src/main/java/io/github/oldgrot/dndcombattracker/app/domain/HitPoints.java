@@ -1,7 +1,5 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
-import lombok.Getter;
-
 public record HitPoints(
         int max,
         int current,
@@ -9,15 +7,15 @@ public record HitPoints(
 ) {
     public HitPoints {
         if (max <= 0) {
-            throw new IllegalArgumentException("Max HP must be positive");
+            throw new IllegalArgumentException("Max HP must be greater than zero");
         }
 
         if (current < 0 || current > max) {
-            throw new IllegalArgumentException("Invalid current HP");
+            throw new IllegalArgumentException("Current HP must be between zero and max HP");
         }
 
         if (temporary < 0) {
-            throw new IllegalArgumentException("Invalid temporary HP");
+            throw new IllegalArgumentException("Temporary HP cannot be negative");
         }
     }
 }
