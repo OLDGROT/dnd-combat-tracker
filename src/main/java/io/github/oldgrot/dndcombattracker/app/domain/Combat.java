@@ -2,7 +2,7 @@ package io.github.oldgrot.dndcombattracker.app.domain;
 
 import io.github.oldgrot.dndcombattracker.app.domain.constants.CombatStatus;
 import io.github.oldgrot.dndcombattracker.app.domain.exception.InvalidCombatStateException;
-import io.github.oldgrot.dndcombattracker.app.domain.exception.OperationNotFoundException;
+import io.github.oldgrot.dndcombattracker.app.domain.exception.InvalidCombatStateException;
 import lombok.AccessLevel;
 import lombok.Getter;
 
@@ -43,7 +43,7 @@ public class Combat {
         Objects.requireNonNull(combatant, "Combatant cannot be null");
 
         if(status == CombatStatus.FINISHED || status == CombatStatus.ARCHIVED){
-            throw  new OperationNotFoundException("");
+            throw  new InvalidCombatStateException("Don't add combatant in " + status.toString() + "combat");
         }
 
         if (!combatants.add(combatant)) {
