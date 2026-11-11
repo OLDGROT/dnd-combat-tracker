@@ -51,14 +51,15 @@ class DiceRollerTest {
             verify(randomGenerator).nextInt(1, sides + 1);
         }
 
-        @ParameterizedTest(name = "отклоняет число граней {0}")
-        @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 1})
-        void rejectsDiceWithFewerThanTwoSides(int sides) {
+        @ParameterizedTest(name = "отклоняет число граней вне диапазона: {0}")
+        @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 1, 101, Integer.MAX_VALUE})
+        void rejectsDiceOutsideSupportedRange(int sides) {
             RandomGenerator randomGenerator = mock(RandomGenerator.class);
             DiceRoller diceRoller = new DiceRoller(randomGenerator);
 
             assertThatThrownBy(() -> diceRoller.roll(sides))
-                    .isInstanceOf(IllegalArgumentException.class);
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("A die must have between 2 and 100 faces");
             verifyNoInteractions(randomGenerator);
         }
     }
