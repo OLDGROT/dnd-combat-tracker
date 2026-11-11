@@ -36,30 +36,30 @@ class DiceRollerTest {
         @CsvSource({
                 "2, 1",
                 "2, 2",
-                "6, 4",
-                "20, 20",
-                "100, 73"
+                "6, 6",
+                "20, 19",
+                "100, 76"
         })
         void returnsControlledValueAndUsesInclusiveDiceRange(int sides, int expectedResult) {
             RandomGenerator randomGenerator = mock(RandomGenerator.class);
-            when(randomGenerator.nextInt(1, sides + 1)).thenReturn(expectedResult);
+            when(randomGenerator.nextInt(sides)).thenReturn(expectedResult);
             DiceRoller diceRoller = new DiceRoller(randomGenerator);
 
             int result = diceRoller.roll(sides);
 
-            assertThat(result).isEqualTo(expectedResult);
-            verify(randomGenerator).nextInt(1, sides + 1);
+            assertThat(result).isEqualTo(expectedResult + 1);
+            verify(randomGenerator).nextInt(sides);
         }
 
         @ParameterizedTest(name = "отклоняет число граней вне диапазона: {0}")
-        @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 1, 101, Integer.MAX_VALUE})
+        @ValueSource(ints = {Integer.MIN_VALUE, -1, 0, 1})
         void rejectsDiceOutsideSupportedRange(int sides) {
             RandomGenerator randomGenerator = mock(RandomGenerator.class);
             DiceRoller diceRoller = new DiceRoller(randomGenerator);
 
             assertThatThrownBy(() -> diceRoller.roll(sides))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("A die must have between 2 and 100 faces");
+                    .hasMessage("A die must have at 2 sides");
             verifyNoInteractions(randomGenerator);
         }
     }

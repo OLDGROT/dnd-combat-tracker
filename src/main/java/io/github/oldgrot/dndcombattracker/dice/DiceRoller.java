@@ -15,9 +15,9 @@ public class DiceRoller {
     }
 
     public int roll(int sides) {
-        if (sides < 2 || sides > 100) {
-            throw new IllegalArgumentException("A die must have between 2 and 100 faces");
+        if (sides < 2 ) {
+            throw new IllegalArgumentException("A die must have at 2 sides");
         }
-        return randomGenerator.nextInt(1, sides + 1);
+        return randomGenerator.nextInt(sides) + 1;
     }
 }
