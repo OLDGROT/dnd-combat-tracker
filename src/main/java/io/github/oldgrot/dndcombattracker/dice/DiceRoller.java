@@ -16,7 +16,7 @@ public class DiceRoller {
 
     public int roll(int sides) {
         if (sides < 2 ) {
-            throw new IllegalArgumentException("A die must have at 2 sides");
+            throw new IllegalArgumentException("A die must have at least 2 sides");
         }
         return randomGenerator.nextInt(sides) + 1;
     }

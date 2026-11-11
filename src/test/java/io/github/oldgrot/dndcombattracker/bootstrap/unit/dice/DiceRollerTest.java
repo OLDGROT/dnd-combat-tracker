@@ -59,7 +59,7 @@ class DiceRollerTest {
 
             assertThatThrownBy(() -> diceRoller.roll(sides))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("A die must have at 2 sides");
+                    .hasMessage("A die must have at least 2 sides");
             verifyNoInteractions(randomGenerator);
         }
     }
