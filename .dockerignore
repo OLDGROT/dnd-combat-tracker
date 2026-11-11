@@ -1,6 +1,12 @@
 .git
 .github
 .idea
-target
-*.iml
+.agents
 .env
+*.iml
+src
+docs
+*.md
+docker-compose.yml
+target/*
+!target/*.jar

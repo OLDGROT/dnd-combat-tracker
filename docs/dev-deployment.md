@@ -1,48 +1,70 @@
 # Dev-развёртывание D&D Combat Tracker
 
 ## Текущая инфраструктура
-- Kubernetes: существующий k3s-кластер `k3s-dev`, namespace `dev`.
+
+- Kubernetes: k3s-кластер `k3s-dev`, namespace `dev`.
 - PostgreSQL: `postgres-dev.dev.svc.cluster.local:5432`.
 - База: `dnd_combat_tracker`, пользователь `dnd_app`.
-- Приложение: Deployment и Service `dnd-combat-tracker` в `dev`, порт 8080.
-- Namespace `prod` не используется.
+- Приложение: Deployment и Service `dnd-combat-tracker`, порт 8080.
+- Образы: `ghcr.io/oldgrot/dnd-combat-tracker`.
+- Доставка на стенд: Flux CD отслеживает dev-теги образа в GHCR.
+
+Namespace `prod` в этом процессе не используется.
 
 ## Pipeline
-- PR в `dev` или `main`: `verify` запускает `./mvnw clean verify` на PostgreSQL Testcontainers; деплой не выполняется.
-- **Push/merge в `dev`**: `verify` → публикация Docker-образа в GHCR с тегом commit SHA → автоматический деплой в Kubernetes namespace `dev` → `kubectl rollout status`.
-- Push/merge в `main`: только `verify`, без публикации образа и без деплоя.
-- Деплой запускается по `push` в `dev`, в том числе после слияния PR; прямой push также запустит pipeline. Чтобы разрешить деплой только после merge PR, запретить прямые push в `dev` через правила защиты ветки.
-- При ошибке тестов публикация/деплой не выполняются; при ошибке публикации не выполняется деплой.
-- Отчёты JUnit загружаются как артефакты GitHub Actions.
-- Отдельные unit/integration jobs — задача #20; пока всё проверяется одним `verify`.
 
-## Однократная подготовка (администратор кластера)
-1. Проверить, что текущий `kubectl` указывает на **нужный кластер**: `kubectl config current-context` и `kubectl get nodes`. Не использовать `prod`.
-2. В существующем `dev` создать Secret `dnd-combat-tracker-db` с ключом `password`. Пароль вводить вне истории shell (например, через защищённый ввод и `kubectl create secret generic ... --from-file=password=/path/to/temporary/secure/file`; временный файл удалить безопасным способом). Не сохранять пароль в Git.
-3. Создать RBAC для deployer командой `kubectl apply -f k8s/dev/deployer-rbac.yaml` **только от имени администратора**; CI не должен иметь права менять эти RBAC-объекты.
-4. Зарегистрировать доверенный self-hosted GitHub Actions runner на машине с сетевым доступом к Kubernetes API, снабдить меткой `dnd-dev`. Runner должен иметь `git`, `kubectl`, а его kubeconfig — права **только** ServiceAccount `dnd-deployer` в `dev`. **Не копировать администраторский kubeconfig k3s** и не давать runner доступ к Docker socket на хосте кластера. Без настроенного runner job `deploy` будет ждать исполнителя.
-5. Обеспечить доступ к GHCR. Для приватного образа вручную создать imagePullSecret и добавить `imagePullSecrets` в Pod spec; альтернативно — сделать пакет GHCR публичным. Не выкладывать credentials в манифесты.
-6. В репозитории проверить настройки GitHub Environment `dev`: если установлены обязательные ручные approvals, деплой не будет полностью автоматическим.
+Workflow запускает три последовательные стадии для каждого PR независимо от целевой ветки:
 
-**Секреты и права в кластере:** роль `dnd_app` имеет CONNECT и CREATE/USAGE public. Перед деплоем необходимо проверить реальное подключение по паролю, предпочтительно из временного pod без публикации пароля в логах.
+1. `Unit tests` запускает Maven Surefire и публикует JUnit XML и данные покрытия.
+2. `Integration tests and coverage` запускает Maven Failsafe на PostgreSQL Testcontainers, объединяет покрытие unit- и integration-тестов, публикует JUnit XML и HTML-отчёт JaCoCo.
+3. `Build image and deploy dev` собирает контейнер из JAR, который прошёл обе тестовые стадии. В PR образ проверяется без публикации и деплоя.
 
-## Что делает автоматический деплой
-Автоматический job обновляет **только образ существующего Deployment** с помощью `kubectl set image` и проверяет `rollout status`. Он не создаёт Service или Deployment и не применяет другие изменения манифестов. Такие изменения следует применять отдельно после ревью администратором кластера. RBAC `dnd-deployer` не даёт прав на создание новых Deployment, изменение других namespaces или редактирование Secret. GitHub Actions runner предназначен исключительно для доверенного кода; для публичного репозитория предпочтителен изолированный одноразовый runner либо GitOps.
+После слияния PR в `dev` событие `push` повторяет проверки. Третья стадия авторизуется в GHCR и публикует два тега:
 
-## Проверка после первого деплоя
+- неизменяемый `${GITHUB_SHA}`;
+- версию `dev-0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}` для Flux image automation.
+
+Появление нового dev-тега запускает GitOps-развёртывание: Flux CD обновляет ссылку на образ в конфигурации стенда и применяет изменение в namespace `dev`. GitHub Actions не получает kubeconfig и не обращается к Kubernetes API напрямую.
+
+Если unit- или integration-тесты завершились ошибкой, образ не собирается и не публикуется. Если публикация завершилась ошибкой, нового dev-тега нет и Flux не начинает обновление стенда.
+
+`workflow_dispatch` предназначен для ручной проверки выбранной ветки. Ручной запуск собирает образ, но не публикует его и не запускает деплой.
+
+## Требования к Flux CD
+
+В инфраструктурном репозитории должны быть настроены:
+
+- доступ Flux к образу `ghcr.io/oldgrot/dnd-combat-tracker`;
+- `ImageRepository` для чтения тегов GHCR;
+- `ImagePolicy`, выбирающая новые версии `dev-0.x.y`;
+- image automation, обновляющая dev-конфигурацию;
+- reconciliation с k3s-кластером и namespace `dev`.
+
+Эти объекты принадлежат инфраструктуре стенда и не создаются application workflow. Публикация образа подтверждает запуск доставки, а успешное развёртывание подтверждается состоянием Flux и Kubernetes.
+
+## Проверка развёртывания
+
+После успешной публикации образа:
+
 ```bash
+flux get image policy --all-namespaces
+flux get kustomizations --all-namespaces
 kubectl -n dev get deployment,service,pods
 kubectl -n dev rollout status deployment/dnd-combat-tracker --timeout=240s
-kubectl -n dev logs deployment/dnd-combat-tracker --tail=100
+kubectl -n dev get deployment/dnd-combat-tracker -o jsonpath='{.spec.template.spec.containers[0].image}'
+```
+
+Проверка приложения через Service:
+
+```bash
 kubectl -n dev port-forward service/dnd-combat-tracker 8080:8080
-# В другом терминале:
 curl --fail http://localhost:8080/actuator/health
 ```
 
-Если pod не готов, проверить `kubectl -n dev describe pod <имя>`, Secret, PullPolicy/imagePullSecret, аутентификацию БД и ошибки Liquibase.
+Если новый образ не появился, нужно проверить публикацию пакета в GHCR, правила выбора тегов в `ImagePolicy`, состояние image automation и reconciliation Flux. Если Pod не готов, нужно проверить события Pod, Secret базы данных, доступ к PostgreSQL и ошибки Liquibase.
 
 ## Откат
-Откат версии приложения: `kubectl -n dev rollout undo deployment/dnd-combat-tracker` (если доступна предыдущая ревизия). В стратегии `Recreate` возможен простой при смене версии. **Откат контейнера НЕ откатывает миграции Liquibase**. Перед несовместимыми миграциями требуется план восстановления и резервное копирование PostgreSQL.
 
-## Ограничения
-Первый автоматический деплой возможен только после регистрации runner, настройки ограниченных credentials Kubernetes, Secret базы и доступного образа GHCR. Эти компоненты **не создаются самим коммитом**; кластер и PostgreSQL коммит не меняет.
+Откат выполняется через GitOps: в инфраструктурной конфигурации фиксируется предыдущий SHA-тег образа, после чего Flux применяет изменение. Ручной `kubectl set image` создаёт расхождение с декларативной конфигурацией и будет отменён следующей reconciliation.
+
+Откат контейнера не откатывает миграции Liquibase. Для несовместимых миграций заранее требуется отдельный план восстановления базы данных.
