@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dnd-combat-tracker
+  namespace: dev
+  labels:
+    app: dnd-combat-tracker
+spec:
+  type: ClusterIP
+  selector:
+    app: dnd-combat-tracker
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http

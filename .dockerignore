@@ -2,6 +2,8 @@
 .github
 .idea
 .agents
+.env
+*.iml
 src
 docs
 *.md

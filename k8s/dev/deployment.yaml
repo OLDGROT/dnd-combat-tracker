@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dnd-combat-tracker
+  namespace: dev
+  labels:
+    app: dnd-combat-tracker
+spec:
+  replicas: 1
+  # Avoid running two versions of Liquibase on this single-instance dev environment.
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: dnd-combat-tracker
+  template:
+    metadata:
+      labels:
+        app: dnd-combat-tracker
+    spec:
+      containers:
+        - name: app
+          image: __IMAGE__
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_URL
+              value: jdbc:postgresql://postgres-dev.dev.svc.cluster.local:5432/dnd_combat_tracker
+            - name: DB_USERNAME
+              value: dnd_app
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: dnd-combat-tracker-db
+                  key: password
+            - name: MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED
+              value: "true"
+          startupProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 768Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001

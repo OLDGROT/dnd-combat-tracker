@@ -1,0 +1,31 @@
+# One-time bootstrap by cluster administrator; do NOT apply this file from CI.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: dnd-deployer
+  namespace: dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: dnd-deployer
+  namespace: dev
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    resourceNames: ["dnd-combat-tracker"]
+    verbs: ["get", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: dnd-deployer
+  namespace: dev
+subjects:
+  - kind: ServiceAccount
+    name: dnd-deployer
+    namespace: dev
+roleRef:
+  kind: Role
+  name: dnd-deployer
+  apiGroup: rbac.authorization.k8s.io
