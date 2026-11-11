@@ -42,12 +42,12 @@ class DiceRollerTest {
         })
         void returnsControlledValueAndUsesInclusiveDiceRange(int sides, int expectedResult) {
             RandomGenerator randomGenerator = mock(RandomGenerator.class);
-            when(randomGenerator.nextInt(sides)).thenReturn(expectedResult);
+            when(randomGenerator.nextInt(sides)).thenReturn(expectedResult - 1);
             DiceRoller diceRoller = new DiceRoller(randomGenerator);
 
             int result = diceRoller.roll(sides);
 
-            assertThat(result).isEqualTo(expectedResult + 1);
+            assertThat(result).isEqualTo(expectedResult);
             verify(randomGenerator).nextInt(sides);
         }
 
