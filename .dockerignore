@@ -1,0 +1,10 @@
+.git
+.github
+.idea
+.agents
+src
+docs
+*.md
+docker-compose.yml
+target/*
+!target/*.jar

@@ -1,16 +1,20 @@
 name: Backend CI
+
 on:
   pull_request:
-    branches: [main]
+    branches: [main, dev]
   push:
-    branches: [main]
+    branches: [main, dev]
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
-  verify:
+  unit-tests:
+    name: Unit tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -18,5 +22,90 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - name: Build and test with PostgreSQL Testcontainers
-        run: ./mvnw --batch-mode --no-transfer-progress clean verify
+      - name: Run unit tests
+        run: ./mvnw --batch-mode --no-transfer-progress clean test -DskipITs=true
+      - name: Publish unit test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-reports
+          path: target/surefire-reports/*.xml
+          if-no-files-found: error
+      - name: Preserve unit coverage data
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-coverage-data
+          path: target/jacoco.exec
+          if-no-files-found: error
+
+  integration-tests:
+    name: Integration tests and coverage
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: Download unit coverage data
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage-data
+          path: target
+      - name: Run integration tests and build application
+        run: ./mvnw --batch-mode --no-transfer-progress verify -DskipUnitTests=true
+      - name: Add coverage to job summary
+        if: always()
+        shell: bash
+        run: |
+          if [[ -f target/site/jacoco/jacoco.csv ]]; then
+            awk -F, 'NR > 1 { missed += $8; covered += $9 } END { total = missed + covered; printf "### Покрытие строк кода\n\n**%.2f%%** (%d из %d строк)\n", total ? covered * 100 / total : 0, covered, total }' target/site/jacoco/jacoco.csv >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo 'Отчёт JaCoCo не создан.' >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+      - name: Publish integration test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-test-reports
+          path: target/failsafe-reports/*.xml
+          if-no-files-found: error
+      - name: Publish coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: target/site/jacoco
+          if-no-files-found: error
+      - name: Preserve application artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: application-jar
+          path: target/*.jar
+          if-no-files-found: error
+
+  build-image:
+    name: Build image
+    needs: integration-tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download verified application
+        uses: actions/download-artifact@v4
+        with:
+          name: application-jar
+          path: target
+      - uses: docker/setup-buildx-action@v3
+      - name: Build container image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          tags: dnd-combat-tracker:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

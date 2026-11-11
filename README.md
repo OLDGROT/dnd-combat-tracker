@@ -58,22 +58,31 @@ Compose публикует PostgreSQL только на loopback-интерфе�
 
 ## Тесты и CI
 
+Полная локальная проверка запускает unit-тесты через Maven Surefire, интеграционные тесты `*IT` через Maven Failsafe, формирует отчёт JaCoCo и собирает исполняемый JAR:
+
 ```sh
 ./mvnw --batch-mode --no-transfer-progress clean verify
 ```
 
-Команда компилирует основной и тестовый код, выполняет тесты JUnit Jupiter и собирает исполняемый JAR. Тесты запускают временную PostgreSQL 17.7 со сгенерированными учётными данными. Они не используют базу Compose и не требуют `DB_PASSWORD`. Отсутствие Docker приводит к ошибке тестов, а не к их скрытому пропуску.
+Отдельно наборы можно запустить командами:
 
-Smoke-тесты проверяют запуск контекста на чистой базе, валидацию Flyway и пустую историю миграций, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. GitHub Actions выполняет сборку на PR в `main` и поддерживает ручной запуск. Запуск при push в `main` добавляется в PR #7. CI не требует учётных данных проекта. Фактические результаты проверок указываются в описании каждого PR.
+```sh
+./mvnw --batch-mode --no-transfer-progress clean test -DskipITs=true
+./mvnw --batch-mode --no-transfer-progress clean verify -DskipUnitTests=true
+```
 
-The smoke suite checks application context startup against a fresh database, Liquibase changelog execution and idempotent re-execution, an HTTP health response of `UP` without details, and non-exposure of other actuator endpoints. GitHub Actions runs the same build on pull requests targeting `main`, pushes to `main`, and supports manual dispatch. No credentials are required by CI. Human review and merging remain the maintainer's responsibility.
+Интеграционные тесты запускают временную PostgreSQL 17.7 со сгенерированными учётными данными. Они не используют базу Compose и не требуют `DB_PASSWORD`. Отсутствие Docker приводит к ошибке тестов, а не к их скрытому пропуску.
+
+GitHub Actions показывает три последовательные проверки: `Unit tests`, `Integration tests and coverage` и `Build image`. Первая публикует JUnit XML unit-тестов, вторая запускает PostgreSQL Testcontainers, публикует JUnit XML и полный HTML-отчёт JaCoCo, а также выводит процент покрытия строк в сводку job. Третья собирает контейнер из JAR, прошедшего обе тестовые стадии. Workflow запускается для PR и push в `dev` и `main`, а также вручную.
+
+Smoke-тесты проверяют запуск контекста на чистой базе, выполнение и повторный запуск Liquibase changelog, HTTP-ответ health со значением `UP` без диагностических деталей и недоступность остальных actuator endpoints. CI не требует учётных данных проекта.
 
 1. Подключите репозиторий к Codex Cloud и подготовьте среду с JDK 21, Docker и сетевым доступом к зависимостям. Перед работой прочитайте [AGENTS.md](AGENTS.md), задачу и критерии приёмки.
-2. Создайте отдельную ветку от актуального `main`. Ограничьте изменения задачей; учитывайте её зависимости и не описывайте ещё не реализованные возможности как готовые.
+2. Создайте отдельную ветку от актуальной `dev`. Ограничьте изменения задачей; учитывайте её зависимости и не описывайте ещё не реализованные возможности как готовые.
 3. Выполните проверку Maven. При сетевых или инфраструктурных ограничениях укажите точную причину, какие проверки не запустились и что осталось непроверенным.
-4. Откройте PR в `main` по [шаблону](.github/pull_request_template.md). Пишите Markdown-документацию, сообщения коммитов, описания и комментарии к PR и коммитам на русском. Технические идентификаторы и код сохраняйте в оригинальном виде.
+4. Откройте PR в `dev` по [шаблону](.github/pull_request_template.md). Пишите Markdown-документацию, сообщения коммитов, описания и комментарии к PR и коммитам на русском. Технические идентификаторы и код сохраняйте в оригинальном виде.
 5. Дождитесь CI и человеческого code review. Исправления оформляйте коммитами в той же ветке и обновляйте описание PR с результатами проверок.
-6. Решение о слиянии принимает человек. Агент не выполняет merge, не включает auto-merge и не отправляет изменения непосредственно в `main`.
+6. Решение о слиянии принимает человек. Агент не выполняет merge, не включает auto-merge и не отправляет изменения непосредственно в `dev` или `main`.
 
 ## Архитектурные решения
 
