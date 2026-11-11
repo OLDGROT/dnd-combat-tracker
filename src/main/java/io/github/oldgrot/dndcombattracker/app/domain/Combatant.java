@@ -14,7 +14,7 @@ public class Combatant {
     private final UUID id;
     private String name;
     private int initiative;
-    private HitPoints hitPoints;
+    private final HitPoints hitPoints;
     private boolean surprised;
 
     public Combatant(UUID id, String name, HitPoints hitPoints){
@@ -29,5 +29,7 @@ public class Combatant {
         this.surprised = false;
 
         this.hitPoints = Objects.requireNonNull(hitPoints, "Combatant hit points cannot be null");
+
+
     }
 }
