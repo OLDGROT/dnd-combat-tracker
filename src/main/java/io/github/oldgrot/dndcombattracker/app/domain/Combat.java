@@ -14,6 +14,8 @@ public class Combat {
     @Getter(AccessLevel.NONE)
     private final Set<Combatant> combatants;
     private CombatStatus status;
+    private final TurnQueue turnQueue;
+
     private long version;
 
     //Конструктор для создания
@@ -27,9 +29,10 @@ public class Combat {
         }
 
         this.name = name.strip();
-        roundNumber = 0L;
         status = CombatStatus.PREPARING;
         combatants = new HashSet<>();
+        this.turnQueue = new TurnQueue();
+
         version = 0L;
     }
 

@@ -206,20 +206,6 @@ class TurnQueueTest {
         }
     }
 
-    @Nested
-    @DisplayName("Копирование записи")
-    class CopyingEntry {
-
-        @Test
-        @DisplayName("создаёт равную независимую копию TurnEntry")
-        void createsEqualDistinctEntryCopy() {
-            TurnEntry original = entry(FIRST_ID, 15);
-
-            TurnEntry copy = original.copyOf();
-
-            assertThat(copy).isEqualTo(original).isNotSameAs(original);
-        }
-    }
 
     private TurnEntry entry(UUID id, int initiative) {
         return new TurnEntry(id, initiative);

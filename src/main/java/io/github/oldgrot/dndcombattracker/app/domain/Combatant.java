@@ -13,11 +13,10 @@ public class Combatant {
     @EqualsAndHashCode.Include
     private final UUID id;
     private String name;
-    private int initiative;
     private final HitPoints hitPoints;
     private boolean surprised;
 
-    public Combatant(UUID id, String name, HitPoints hitPoints){
+    public Combatant(UUID id, String name, HitPoints hitPoints, int initiative){
         this.id = Objects.requireNonNull(id, "Combatant ID cannot be null");
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
@@ -25,13 +24,9 @@ public class Combatant {
             );
         }
         this.name = name.strip();
-        this.initiative = 0;
         this.surprised = false;
 
         this.hitPoints = Objects.requireNonNull(hitPoints, "Combatant hit points cannot be null");
-
-
-
 
     }
 }
