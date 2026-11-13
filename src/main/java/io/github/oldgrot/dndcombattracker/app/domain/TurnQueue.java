@@ -1,10 +1,8 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
-import org.springframework.dao.DuplicateKeyException;
-
 import java.util.Objects;
 
-public class TurnQueue<T extends Combatant> {
+public class TurnQueue {
     private TurnEntry[] deque;
     private int capacity;
     private int size;
