@@ -2,8 +2,10 @@ package io.github.oldgrot.dndcombattracker.app.domain;
 
 import org.springframework.dao.DuplicateKeyException;
 
+import java.util.Objects;
+
 public class TurnQueue<T extends Combatant> {
-    private CombatantDto[] deque;
+    private TurnEntry[] deque;
     private int capacity;
     private int size;
     private double KEF = 0.75;
@@ -11,10 +13,10 @@ public class TurnQueue<T extends Combatant> {
     public TurnQueue(){
         this.size = 0;
         this.capacity = 10;
-        this.deque = new CombatantDto[capacity];
+        this.deque = new TurnEntry[capacity];
     }
 
-    public void add(CombatantDto owner){
+    public void add(TurnEntry owner){
         if(owner == null){
             throw new IllegalArgumentException("");
         }
@@ -24,13 +26,14 @@ public class TurnQueue<T extends Combatant> {
         }
 
         for(int i = 0; i < deque.length; i++){
-            if(owner.id() == deque[i].id()){
-                throw new DuplicateKeyException("");
-            }
             if(deque[i] == null){
                 deque[i] = owner;
                 size++;
                 return;
+            }
+
+            if(Objects.equals(deque[i].id(),owner.id())){
+                throw new IllegalArgumentException("");
             }
 
             if(deque[i].initiative() > owner.initiative()){
@@ -46,17 +49,20 @@ public class TurnQueue<T extends Combatant> {
         }
     }
 
-    private void shiftArray(CombatantDto owner, int position) {
-        CombatantDto temp = owner.copyOf();
-        for(int j = position; j < deque.length + 1; j++) {
-            deque[j] = temp;
-            temp = deque[j +1];
+    private void shiftArray(TurnEntry owner, int position) {
+        TurnEntry temp = owner;
+        for(int j = size; j <= position; j--) {
+            if(j == position){
+                deque[j] = owner;
+            } else{
+                deque[j] = deque[j-1];
+            }
         }
         size++;
     }
 
     private void autoPlus(){
-        CombatantDto[] newArr = new CombatantDto[capacity *2];
+        TurnEntry[] newArr = new TurnEntry[capacity *2];
         System.arraycopy(deque, 0, newArr, 0, deque.length);
         deque = newArr;
         capacity *= 2;
