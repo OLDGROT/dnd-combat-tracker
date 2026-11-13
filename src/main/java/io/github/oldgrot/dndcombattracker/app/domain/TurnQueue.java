@@ -2,6 +2,7 @@ package io.github.oldgrot.dndcombattracker.app.domain;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class TurnQueue {
     private TurnEntry[] entries;
@@ -9,47 +10,48 @@ public class TurnQueue {
     private int size;
     private static final double LOAD_FACTOR = 0.75;
 
-    public TurnQueue(){
+    public TurnQueue() {
         this.size = 0;
         this.capacity = 10;
         this.entries = new TurnEntry[capacity];
     }
 
-    public void add(TurnEntry owner){
-        if(owner == null){
-            throw new IllegalArgumentException("");
+    public void add(TurnEntry owner) {
+        if (owner == null) {
+            throw new IllegalArgumentException("Turn entry cannot be null");
         }
 
-        if(size >= capacity * LOAD_FACTOR){
+        if (size >= capacity * LOAD_FACTOR) {
             autoPlus();
         }
 
-        for(int i = 0; i < entries.length; i++){
-            if(entries[i] == null){
-                entries[i] = owner;
-                size++;
-                return;
-            }
+        containsCombatant(owner);
 
-            containsCombatant(owner);
-
-            if(entries[i].initiative() > owner.initiative()){
+        for (int i = 0; i < size; i++) {
+            if (entries[i].initiative() > owner.initiative()) {
                 continue;
-            }
-            else if(entries[i].initiative() < owner.initiative()){
+            } else if (entries[i].initiative() < owner.initiative()) {
                 shiftArray(owner, i);
                 return;
-            } else if(entries[i].initiative() == owner.initiative()){
+            } else {
                 shiftArray(owner, i + 1);
                 return;
             }
         }
+
+        entries[size] = owner;
+        size++;
     }
 
-    public void addAll(List<TurnEntry> entries){
+    public void addAll(List<TurnEntry> entries) {
+        Objects.requireNonNull(entries, "Turn entries cannot be null");
         for (TurnEntry entry : entries) {
             this.add(entry);
         }
+    }
+
+    public List<TurnEntry> getEntries() {
+        return List.copyOf(Arrays.asList(entries).subList(0, size));
     }
 
     private void containsCombatant(TurnEntry turnEntry) {
@@ -62,22 +64,20 @@ public class TurnQueue {
     }
 
     private void shiftArray(TurnEntry owner, int position) {
-        for(int j = size; j >= position; j--) {
-            if(j == position){
+        for (int j = size; j >= position; j--) {
+            if (j == position) {
                 entries[j] = owner;
-            } else{
-                entries[j] = entries[j-1];
+            } else {
+                entries[j] = entries[j - 1];
             }
         }
         size++;
     }
 
-    private void autoPlus(){
-        TurnEntry[] newArr = new TurnEntry[capacity *2];
+    private void autoPlus() {
+        TurnEntry[] newArr = new TurnEntry[capacity * 2];
         System.arraycopy(entries, 0, newArr, 0, entries.length);
         entries = newArr;
         capacity *= 2;
     }
-
-
 }
