@@ -11,7 +11,6 @@ import java.util.*;
 public class Combat {
     private final UUID id;
     private String name;
-    private long roundNumber;
     @Getter(AccessLevel.NONE)
     private final Set<Combatant> combatants;
     private CombatStatus status;

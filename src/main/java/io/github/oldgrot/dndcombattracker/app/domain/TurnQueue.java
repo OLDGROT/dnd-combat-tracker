@@ -3,17 +3,23 @@ package io.github.oldgrot.dndcombattracker.app.domain;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 public class TurnQueue {
     private TurnEntry[] entries;
     private int capacity;
     private int size;
+    private int turn_position;
+    private long roundNumber;
+
     private static final double LOAD_FACTOR = 0.75;
 
     public TurnQueue() {
         this.size = 0;
         this.capacity = 10;
         this.entries = new TurnEntry[capacity];
+        this.turn_position = 0;
+        this.roundNumber = 1L;
     }
 
     public void add(TurnEntry owner) {
@@ -25,7 +31,7 @@ public class TurnQueue {
             autoPlus();
         }
 
-        containsCombatant(owner);
+        ensureCombatantNotPresent(owner);
 
         for (int i = 0; i < size; i++) {
             if (entries[i].initiative() > owner.initiative()) {
@@ -50,11 +56,26 @@ public class TurnQueue {
         }
     }
 
+    public UUID getTurnEntry(){
+        return entries[turn_position].id();
+    }
+
+    public UUID getNextTurnEntry(){
+         if(turn_position == size){
+             turn_position = 0;
+             roundNumber++;
+             return getTurnEntry();
+         }
+
+        turn_position++;
+        return getTurnEntry();
+    }
+
     public List<TurnEntry> getEntries() {
         return List.copyOf(Arrays.asList(entries).subList(0, size));
     }
 
-    private void containsCombatant(TurnEntry turnEntry) {
+    private void ensureCombatantNotPresent(TurnEntry turnEntry) {
         if (Arrays.stream(entries, 0, size)
                 .anyMatch(entry -> entry.id().equals(turnEntry.id()))) {
             throw new IllegalArgumentException(
