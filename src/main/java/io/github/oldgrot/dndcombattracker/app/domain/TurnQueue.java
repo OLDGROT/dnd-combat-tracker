@@ -1,17 +1,17 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
-import java.util.Objects;
+import java.util.Arrays;
 
 public class TurnQueue {
-    private TurnEntry[] deque;
+    private TurnEntry[] entries;
     private int capacity;
     private int size;
-    private double KEF = 0.75;
+    private static final double KEF = 0.75;
 
     public TurnQueue(){
         this.size = 0;
         this.capacity = 10;
-        this.deque = new TurnEntry[capacity];
+        this.entries = new TurnEntry[capacity];
     }
 
     public void add(TurnEntry owner){
@@ -23,24 +23,27 @@ public class TurnQueue {
             autoPlus();
         }
 
-        for(int i = 0; i < deque.length; i++){
-            if(deque[i] == null){
-                deque[i] = owner;
+        for(int i = 0; i < entries.length; i++){
+            if(entries[i] == null){
+                entries[i] = owner;
                 size++;
                 return;
             }
 
-            if(Objects.equals(deque[i].id(),owner.id())){
-                throw new IllegalArgumentException("");
+            if (Arrays.stream(entries, 0, size)
+                    .anyMatch(entry -> entry.id().equals(owner.id()))) {
+                throw new IllegalArgumentException(
+                        "Combatant already exists in turn queue: " + owner.id()
+                );
             }
 
-            if(deque[i].initiative() > owner.initiative()){
+            if(entries[i].initiative() > owner.initiative()){
                 continue;
             }
-            else if(deque[i].initiative() < owner.initiative()){
+            else if(entries[i].initiative() < owner.initiative()){
                 shiftArray(owner, i);
                 return;
-            } else if(deque[i].initiative() == owner.initiative()){
+            } else if(entries[i].initiative() == owner.initiative()){
                 shiftArray(owner, i + 1);
                 return;
             }
@@ -49,11 +52,11 @@ public class TurnQueue {
 
     private void shiftArray(TurnEntry owner, int position) {
         TurnEntry temp = owner;
-        for(int j = size; j <= position; j--) {
+        for(int j = size; j >= position; j--) {
             if(j == position){
-                deque[j] = owner;
+                entries[j] = owner;
             } else{
-                deque[j] = deque[j-1];
+                entries[j] = entries[j-1];
             }
         }
         size++;
@@ -61,8 +64,8 @@ public class TurnQueue {
 
     private void autoPlus(){
         TurnEntry[] newArr = new TurnEntry[capacity *2];
-        System.arraycopy(deque, 0, newArr, 0, deque.length);
-        deque = newArr;
+        System.arraycopy(entries, 0, newArr, 0, entries.length);
+        entries = newArr;
         capacity *= 2;
     }
 
