@@ -1,12 +1,13 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
 import java.util.Arrays;
+import java.util.List;
 
 public class TurnQueue {
     private TurnEntry[] entries;
     private int capacity;
     private int size;
-    private static final double KEF = 0.75;
+    private static final double LOAD_FACTOR = 0.75;
 
     public TurnQueue(){
         this.size = 0;
@@ -19,7 +20,7 @@ public class TurnQueue {
             throw new IllegalArgumentException("");
         }
 
-        if(size >= capacity *KEF){
+        if(size >= capacity * LOAD_FACTOR){
             autoPlus();
         }
 
@@ -30,12 +31,7 @@ public class TurnQueue {
                 return;
             }
 
-            if (Arrays.stream(entries, 0, size)
-                    .anyMatch(entry -> entry.id().equals(owner.id()))) {
-                throw new IllegalArgumentException(
-                        "Combatant already exists in turn queue: " + owner.id()
-                );
-            }
+            containsCombatant(owner);
 
             if(entries[i].initiative() > owner.initiative()){
                 continue;
@@ -50,8 +46,22 @@ public class TurnQueue {
         }
     }
 
+    public void addAll(List<TurnEntry> entries){
+        for (TurnEntry entry : entries) {
+            this.add(entry);
+        }
+    }
+
+    private void containsCombatant(TurnEntry turnEntry) {
+        if (Arrays.stream(entries, 0, size)
+                .anyMatch(entry -> entry.id().equals(turnEntry.id()))) {
+            throw new IllegalArgumentException(
+                    "Combatant already exists in turn queue: " + turnEntry.id()
+            );
+        }
+    }
+
     private void shiftArray(TurnEntry owner, int position) {
-        TurnEntry temp = owner;
         for(int j = size; j >= position; j--) {
             if(j == position){
                 entries[j] = owner;
