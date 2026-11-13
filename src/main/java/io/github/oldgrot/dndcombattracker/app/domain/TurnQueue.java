@@ -29,6 +29,7 @@ public class TurnQueue<T extends Combatant> {
             }
             if(deque[i] == null){
                 deque[i] = owner;
+                size++;
                 return;
             }
 
