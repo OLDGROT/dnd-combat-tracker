@@ -14,6 +14,7 @@ public class Combat {
     @Getter(AccessLevel.NONE)
     private final Set<Combatant> combatants;
     private CombatStatus status;
+    @Getter(AccessLevel.NONE)
     private final TurnQueue turnQueue;
 
     private long version;

@@ -16,7 +16,7 @@ public class Combatant {
     private final HitPoints hitPoints;
     private boolean surprised;
 
-    public Combatant(UUID id, String name, HitPoints hitPoints, int initiative){
+    public Combatant(UUID id, String name, HitPoints hitPoints){
         this.id = Objects.requireNonNull(id, "Combatant ID cannot be null");
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
