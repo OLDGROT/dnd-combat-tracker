@@ -13,7 +13,6 @@ public class TurnQueue {
     private int size;
     private int turnPosition;
     private long roundNumber;
-    private boolean turnStarted;
 
     private static final double LOAD_FACTOR = 0.75;
 
@@ -21,9 +20,8 @@ public class TurnQueue {
         this.size = 0;
         this.capacity = 10;
         this.entries = new TurnEntry[capacity];
-        this.turnPosition = 0;
+        this.turnPosition = -1;
         this.roundNumber = 1L;
-        this.turnStarted = false;
     }
 
     public void add(TurnEntry owner) {
@@ -36,7 +34,7 @@ public class TurnQueue {
         }
 
         ensureCombatantNotPresent(owner);
-        TurnEntry entryToAdd = turnStarted ? owner.markTurnCompleted() : owner;
+        TurnEntry entryToAdd = turnPosition >= 0 ? owner.markTurnCompleted() : owner;
 
         for (int i = 0; i < size; i++) {
             if (entries[i].initiative() > entryToAdd.initiative()) {
@@ -61,13 +59,13 @@ public class TurnQueue {
 
     public UUID getTurnEntry() {
         ensureQueueNotEmpty();
-        turnStarted = true;
+        turnPosition = Math.max(turnPosition, 0);
         return entries[turnPosition].combatantId();
     }
 
     public UUID getNextTurnEntry() {
         ensureQueueNotEmpty();
-        turnStarted = true;
+        turnPosition = Math.max(turnPosition, 0);
         entries[turnPosition] = entries[turnPosition].markTurnCompleted();
 
         for (int offset = 1; offset < size; offset++) {
@@ -122,7 +120,7 @@ public class TurnQueue {
             entries[j] = entries[j - 1];
         }
         entries[position] = owner;
-        if (turnStarted && position <= turnPosition) {
+        if (turnPosition >= 0 && position <= turnPosition) {
             turnPosition++;
         }
         size++;
