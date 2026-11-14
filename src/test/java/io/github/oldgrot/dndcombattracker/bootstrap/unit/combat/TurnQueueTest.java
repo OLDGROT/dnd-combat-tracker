@@ -5,6 +5,7 @@ import java.util.UUID;
 
 import io.github.oldgrot.dndcombattracker.app.domain.TurnEntry;
 import io.github.oldgrot.dndcombattracker.app.domain.TurnQueue;
+import io.github.oldgrot.dndcombattracker.app.domain.exception.CombatantNotFound;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -47,6 +48,20 @@ class TurnQueueTest {
             queue.add(highest);
 
             assertThat(queue.getEntries()).containsExactly(highest, middle, lowest);
+        }
+
+        @Test
+        @DisplayName("сортирует граничные значения инициативы")
+        void sortsMinimumAndMaximumInitiativeValues() {
+            TurnQueue queue = new TurnQueue();
+            TurnEntry minimum = entry(FIRST_ID, Integer.MIN_VALUE);
+            TurnEntry maximum = entry(SECOND_ID, Integer.MAX_VALUE);
+
+            queue.add(minimum);
+            queue.add(maximum);
+
+            assertThat(queue.getEntries()).containsExactly(maximum, minimum);
+            assertThat(queue.getTurnEntry()).isEqualTo(SECOND_ID);
         }
 
         @Test
@@ -99,6 +114,154 @@ class TurnQueueTest {
 
             assertThatThrownBy(() -> queue.getEntries().add(entry(SECOND_ID, 5)))
                     .isInstanceOf(UnsupportedOperationException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("Переход хода и раунда")
+    class AdvancingTurnsAndRounds {
+
+        @Test
+        @DisplayName("начинает первый раунд с участника с максимальной инициативой")
+        void startsFirstRoundWithHighestInitiative() {
+            TurnQueue queue = new TurnQueue();
+            queue.add(entry(FIRST_ID, 10));
+            queue.add(entry(SECOND_ID, 20));
+
+            assertThat(queue.getRoundNumber()).isOne();
+            assertThat(queue.getTurnEntry()).isEqualTo(SECOND_ID);
+        }
+
+        @Test
+        @DisplayName("последовательно передаёт ход всем участникам")
+        void advancesThroughAllEntriesInInitiativeOrder() {
+            TurnQueue queue = queueWithThreeEntries();
+
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(SECOND_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(THIRD_ID);
+            assertThat(queue.getRoundNumber()).isOne();
+        }
+
+        @Test
+        @DisplayName("после последнего участника начинает новый раунд с начала очереди")
+        void startsNextRoundAfterLastEntry() {
+            TurnQueue queue = queueWithThreeEntries();
+            queue.getTurnEntry();
+            queue.getNextTurnEntry();
+            queue.getNextTurnEntry();
+
+            UUID nextRoundEntry = queue.getNextTurnEntry();
+
+            assertThat(nextRoundEntry).isEqualTo(FIRST_ID);
+            assertThat(queue.getRoundNumber()).isEqualTo(2);
+            assertThat(queue.getEntries())
+                    .extracting(TurnEntry::hasActedThisRound)
+                    .containsOnly(false);
+        }
+
+        @Test
+        @DisplayName("для единственного участника каждый следующий ход начинает новый раунд")
+        void advancesRoundForSingleEntryQueue() {
+            TurnQueue queue = new TurnQueue();
+            queue.add(entry(FIRST_ID, 10));
+
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getRoundNumber()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("отмечает завершённый ход до перехода к следующему участнику")
+        void marksCurrentEntryAsActedBeforeAdvancing() {
+            TurnQueue queue = queueWithThreeEntries();
+            queue.getTurnEntry();
+
+            queue.getNextTurnEntry();
+
+            assertThat(queue.getEntries())
+                    .extracting(TurnEntry::hasActedThisRound)
+                    .containsExactly(true, false, false);
+        }
+
+        @Test
+        @DisplayName("откладывает добавленных во время раунда участников до следующего раунда")
+        void defersEntriesAddedDuringRoundUntilNextRound() {
+            TurnQueue queue = new TurnQueue();
+            queue.add(entry(FIRST_ID, 20));
+            queue.add(entry(SECOND_ID, 10));
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+
+            UUID higherNewId = UUID.fromString("00000000-0000-0000-0000-000000000004");
+            UUID lowerNewId = UUID.fromString("00000000-0000-0000-0000-000000000005");
+            queue.add(entry(higherNewId, 30));
+            queue.add(entry(lowerNewId, 5));
+
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(SECOND_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(higherNewId);
+            assertThat(queue.getRoundNumber()).isEqualTo(2);
+            assertThat(queue.getEntries())
+                    .extracting(TurnEntry::combatantId)
+                    .containsExactly(higherNewId, FIRST_ID, SECOND_ID, lowerNewId);
+        }
+
+        @Test
+        @DisplayName("сохраняет текущий ход при вставке участника после текущей позиции")
+        void preservesCurrentTurnWhenAddingEntryAfterCurrentPosition() {
+            TurnQueue queue = new TurnQueue();
+            queue.add(entry(FIRST_ID, 20));
+            queue.add(entry(SECOND_ID, 10));
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+
+            queue.add(entry(THIRD_ID, 15));
+
+            assertThat(queue.getTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(SECOND_ID);
+            assertThat(queue.getNextTurnEntry()).isEqualTo(FIRST_ID);
+            assertThat(queue.getRoundNumber()).isEqualTo(2);
+            assertThat(queue.getEntries())
+                    .extracting(TurnEntry::combatantId)
+                    .containsExactly(FIRST_ID, THIRD_ID, SECOND_ID);
+        }
+
+        @Test
+        @DisplayName("отклоняет получение текущего участника из пустой очереди")
+        void rejectsCurrentEntryLookupInEmptyQueue() {
+            TurnQueue queue = new TurnQueue();
+
+            assertThatThrownBy(queue::getTurnEntry)
+                    .isInstanceOf(CombatantNotFound.class)
+                    .hasMessage("Turn queue does not contain combatants");
+        }
+
+        @Test
+        @DisplayName("отклоняет переход хода в пустой очереди")
+        void rejectsTurnAdvanceInEmptyQueue() {
+            TurnQueue queue = new TurnQueue();
+
+            assertThatThrownBy(queue::getNextTurnEntry)
+                    .isInstanceOf(CombatantNotFound.class)
+                    .hasMessage("Turn queue does not contain combatants");
+        }
+    }
+
+    @Nested
+    @DisplayName("Состояние TurnEntry")
+    class TurnEntryState {
+
+        @Test
+        @DisplayName("создаёт новую запись с отметкой о завершённом ходе")
+        void marksTurnAsCompletedWithoutChangingIdentityOrInitiative() {
+            TurnEntry original = entry(FIRST_ID, 15);
+
+            TurnEntry completed = original.markTurnCompleted();
+
+            assertThat(completed).isNotSameAs(original);
+            assertThat(completed.combatantId()).isEqualTo(FIRST_ID);
+            assertThat(completed.initiative()).isEqualTo(15);
+            assertThat(completed.hasActedThisRound()).isTrue();
+            assertThat(original.hasActedThisRound()).isFalse();
         }
     }
 
@@ -184,7 +347,7 @@ class TurnQueueTest {
         @Test
         @DisplayName("отклоняет null ID записи")
         void rejectsNullEntryId() {
-            assertThatThrownBy(() -> new TurnEntry(null, 10))
+            assertThatThrownBy(() -> new TurnEntry(null, 10, false))
                     .isInstanceOf(NullPointerException.class)
                     .hasMessage("Turn entry ID cannot be null");
         }
@@ -208,6 +371,14 @@ class TurnQueueTest {
 
 
     private TurnEntry entry(UUID id, int initiative) {
-        return new TurnEntry(id, initiative);
+        return new TurnEntry(id, initiative, false);
+    }
+
+    private TurnQueue queueWithThreeEntries() {
+        TurnQueue queue = new TurnQueue();
+        queue.add(entry(THIRD_ID, 5));
+        queue.add(entry(FIRST_ID, 20));
+        queue.add(entry(SECOND_ID, 10));
+        return queue;
     }
 }

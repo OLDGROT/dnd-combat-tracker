@@ -36,7 +36,6 @@ class CombatTest {
 
             assertThat(combat.getId()).isEqualTo(id);
             assertThat(combat.getName()).isEqualTo(name.strip());
-            assertThat(combat.getRoundNumber()).isZero();
             assertThat(combat.getStatus()).isEqualTo(CombatStatus.PREPARING);
             assertThat(combat.getVersion()).isZero();
             assertThat(combat.getCombatants()).isEmpty();

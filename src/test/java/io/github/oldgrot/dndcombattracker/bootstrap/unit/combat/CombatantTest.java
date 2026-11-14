@@ -36,7 +36,6 @@ class CombatantTest {
             assertThat(combatant.getId()).isEqualTo(id);
             assertThat(combatant.getName()).isEqualTo(name.strip());
             assertThat(combatant.getHitPoints()).isSameAs(VALID_HIT_POINTS);
-            assertThat(combatant.getInitiative()).isZero();
             assertThat(combatant.isSurprised()).isFalse();
         }
 

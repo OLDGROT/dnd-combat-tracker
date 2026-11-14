@@ -1,7 +1,6 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
 import io.github.oldgrot.dndcombattracker.app.domain.exception.CombatantNotFound;
-import lombok.AllArgsConstructor;
 
 import java.util.Arrays;
 import java.util.List;
@@ -14,6 +13,7 @@ public class TurnQueue {
     private int size;
     private int turnPosition;
     private long roundNumber;
+    private boolean turnStarted;
 
     private static final double LOAD_FACTOR = 0.75;
 
@@ -23,6 +23,7 @@ public class TurnQueue {
         this.entries = new TurnEntry[capacity];
         this.turnPosition = 0;
         this.roundNumber = 1L;
+        this.turnStarted = false;
     }
 
     public void add(TurnEntry owner) {
@@ -35,21 +36,20 @@ public class TurnQueue {
         }
 
         ensureCombatantNotPresent(owner);
+        TurnEntry entryToAdd = turnStarted ? owner.markTurnCompleted() : owner;
 
         for (int i = 0; i < size; i++) {
-            if (entries[i].initiative() > owner.initiative()) {
+            if (entries[i].initiative() > entryToAdd.initiative()) {
                 continue;
-            } else if (entries[i].initiative() < owner.initiative()) {
-                shiftArray(owner, i);
-                return;
-            } else {
-                shiftArray(owner, i + 1);
-                return;
             }
+
+            int position = entries[i].initiative() < entryToAdd.initiative() ? i : i + 1;
+            shiftArray(entryToAdd, position);
+            return;
         }
 
-        entries[size] = owner;
-        saveTurnPosition(size);
+        entries[size] = entryToAdd;
+        size++;
     }
 
     public void addAll(List<TurnEntry> entries) {
@@ -59,46 +59,53 @@ public class TurnQueue {
         }
     }
 
-    public UUID getTurnEntry(){
-        containsCombatant();
-        if(entries[turnPosition] == null){
-            return null;
-        }
+    public UUID getTurnEntry() {
+        ensureQueueNotEmpty();
+        turnStarted = true;
         return entries[turnPosition].combatantId();
     }
 
-    public UUID getNextTurnEntry(){
-        containsCombatant();
-        if(turnPosition == size + 1 ){
-             turnPosition = 0;
-             roundNumber++;
-             reloadQueue();
-             return getTurnEntry();
-         }
+    public UUID getNextTurnEntry() {
+        ensureQueueNotEmpty();
+        turnStarted = true;
+        entries[turnPosition] = entries[turnPosition].markTurnCompleted();
 
-        turnPosition++;
-        return getTurnEntry();
+        for (int offset = 1; offset < size; offset++) {
+            int candidatePosition = (turnPosition + offset) % size;
+            if (!entries[candidatePosition].hasActedThisRound()) {
+                turnPosition = candidatePosition;
+                return entries[turnPosition].combatantId();
+            }
+        }
+
+        roundNumber++;
+        reloadQueue();
+        turnPosition = 0;
+        return entries[turnPosition].combatantId();
     }
 
-    private void containsCombatant() {
-        if (size == 0) {
-            throw new CombatantNotFound("");
-        }
-    }
-
-    private void reloadQueue() {
-        for(int i = 0; i < size; i++){
-            TurnEntry updated = new TurnEntry(
-                    entries[i].combatantId(),
-                    entries[i].initiative(),
-                    false
-            );
-            entries[i]= updated;
-        }
+    public long getRoundNumber() {
+        return roundNumber;
     }
 
     public List<TurnEntry> getEntries() {
         return List.copyOf(Arrays.asList(entries).subList(0, size));
+    }
+
+    private void ensureQueueNotEmpty() {
+        if (size == 0) {
+            throw new CombatantNotFound("Turn queue does not contain combatants");
+        }
+    }
+
+    private void reloadQueue() {
+        for (int i = 0; i < size; i++) {
+            entries[i] = new TurnEntry(
+                    entries[i].combatantId(),
+                    entries[i].initiative(),
+                    false
+            );
+        }
     }
 
     private void ensureCombatantNotPresent(TurnEntry turnEntry) {
@@ -111,19 +118,11 @@ public class TurnQueue {
     }
 
     private void shiftArray(TurnEntry owner, int position) {
-        for (int j = size; j >= position; j--) {
-            if (j == position) {
-                entries[j] = owner;
-                saveTurnPosition(j);
-            } else {
-                entries[j] = entries[j - 1];
-            }
+        for (int j = size; j > position; j--) {
+            entries[j] = entries[j - 1];
         }
-
-    }
-
-    private void saveTurnPosition(int position){
-        if(turnPosition >= position){
+        entries[position] = owner;
+        if (turnStarted && position <= turnPosition) {
             turnPosition++;
         }
         size++;
