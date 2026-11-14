@@ -1,10 +1,13 @@
 package io.github.oldgrot.dndcombattracker.app.domain;
 
+import lombok.AllArgsConstructor;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
+@AllArgsConstructor
 public class TurnQueue {
     private TurnEntry[] entries;
     private int capacity;
@@ -64,7 +67,7 @@ public class TurnQueue {
     }
 
     public UUID getNextTurnEntry(){
-         if(turnPosition == size + 1){
+         if(turnPosition == size ){
              turnPosition = 0;
              roundNumber++;
              reloadQueue();
