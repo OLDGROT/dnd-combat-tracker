@@ -88,7 +88,8 @@ jobs:
           if-no-files-found: error
 
   build-image:
-    name: Build image and deploy dev
+    name: Publish dev image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
     needs: integration-tests
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -103,7 +104,6 @@ jobs:
           name: application-jar
           path: target
       - name: Log in to GHCR
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -114,16 +114,67 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/dev' }}
+          push: true
           tags: |
             ghcr.io/oldgrot/dnd-combat-tracker:${{ github.sha }}
             ghcr.io/oldgrot/dnd-combat-tracker:dev-0.${{ github.run_number }}.${{ github.run_attempt }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
       - name: Report Flux deployment trigger
-        if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
         shell: bash
         run: |
           echo '### Развёртывание dev' >> "$GITHUB_STEP_SUMMARY"
           echo '' >> "$GITHUB_STEP_SUMMARY"
           echo "Опубликован образ \`ghcr.io/oldgrot/dnd-combat-tracker:dev-0.${GITHUB_RUN_NUMBER}.${GITHUB_RUN_ATTEMPT}\`. Flux CD должен обнаружить новый тег и обновить стенд dev." >> "$GITHUB_STEP_SUMMARY"
+
+  verify-dev-rollout:
+    name: Verify dev rollout
+    if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
+    needs: build-image
+    # Requires a trusted runner with kubectl configured for this K3s cluster.
+    # Never execute pull_request code on this runner.
+    runs-on: [self-hosted, linux]
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - name: Wait for Flux to select this exact image
+        shell: bash
+        env:
+          EXPECTED_IMAGE: ghcr.io/oldgrot/dnd-combat-tracker:dev-0.${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          command -v kubectl
+          kubectl auth can-i get deployment -n dev | grep -qx yes
+          kubectl auth can-i watch deployment -n dev | grep -qx yes
+          echo "Waiting for Flux CD to apply image: $EXPECTED_IMAGE"
+          found=false
+          for attempt in {1..60}; do
+            current_image="$(kubectl -n dev get deployment dnd-combat-tracker -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].image}')"
+            if [[ "$current_image" == "$EXPECTED_IMAGE" ]]; then
+              found=true
+              break
+            fi
+            echo "[$attempt/60] Current image: $current_image"
+            sleep 10
+          done
+          if [[ "$found" != true ]]; then
+            echo "::error::Flux did not apply the expected image within 10 minutes"
+            exit 1
+          fi
+
+      - name: Wait for Kubernetes readiness
+        shell: bash
+        env:
+          EXPECTED_IMAGE: ghcr.io/oldgrot/dnd-combat-tracker:dev-0.${{ github.run_number }}.${{ github.run_attempt }}
+        run: |
+          set -euo pipefail
+          kubectl -n dev rollout status deployment/dnd-combat-tracker --timeout=240s
+          actual_image="$(kubectl -n dev get deployment dnd-combat-tracker -o jsonpath='{.spec.template.spec.containers[?(@.name=="app")].image}')"
+          if [[ "$actual_image" != "$EXPECTED_IMAGE" ]]; then
+            echo "::error::Deployment image changed during rollout: $actual_image"
+            exit 1
+          fi
+          echo "### Dev rollout verified" >> "$GITHUB_STEP_SUMMARY"
+          echo "Image: \`$actual_image\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Deployment ready according to Kubernetes readinessProbe." >> "$GITHUB_STEP_SUMMARY"
