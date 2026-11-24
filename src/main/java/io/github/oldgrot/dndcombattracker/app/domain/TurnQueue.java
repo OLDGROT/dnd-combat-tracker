@@ -8,7 +8,7 @@ import java.util.Objects;
 import java.util.UUID;
 
 public class TurnQueue {
-    private TurnEntry[] entries;
+    private Combatant[] entries;
     private int capacity;
     private int size;
     private int turnPosition;
@@ -19,12 +19,12 @@ public class TurnQueue {
     public TurnQueue() {
         this.size = 0;
         this.capacity = 10;
-        this.entries = new TurnEntry[capacity];
+        this.entries = new Combatant[capacity];
         this.turnPosition = -1;
         this.roundNumber = 1L;
     }
 
-    public void add(TurnEntry owner) {
+    public void add(Combatant owner) {
         if (owner == null) {
             throw new IllegalArgumentException("Turn entry cannot be null");
         }
@@ -34,25 +34,25 @@ public class TurnQueue {
         }
 
         ensureCombatantNotPresent(owner);
-        TurnEntry entryToAdd = turnPosition >= 0 ? owner.markTurnCompleted() : owner;
+
 
         for (int i = 0; i < size; i++) {
-            if (entries[i].initiative() > entryToAdd.initiative()) {
+            if (entries[i].getInitiative() > owner.getInitiative()) {
                 continue;
             }
 
-            int position = entries[i].initiative() < entryToAdd.initiative() ? i : i + 1;
-            shiftArray(entryToAdd, position);
+            int position = entries[i].getInitiative() < owner.getInitiative() ? i : i + 1;
+            shiftArray(owner, position);
             return;
         }
 
-        entries[size] = entryToAdd;
+        entries[size] = owner;
         size++;
     }
 
-    public void addAll(List<TurnEntry> entries) {
+    public void addAll(List<Combatant> entries) {
         Objects.requireNonNull(entries, "Turn entries cannot be null");
-        for (TurnEntry entry : entries) {
+        for (Combatant entry : entries) {
             this.add(entry);
         }
     }
@@ -60,33 +60,33 @@ public class TurnQueue {
     public UUID getTurnEntry() {
         ensureQueueNotEmpty();
         turnPosition = Math.max(turnPosition, 0);
-        return entries[turnPosition].combatantId();
+        return entries[turnPosition].getId();
     }
 
     public UUID getNextTurnEntry() {
         ensureQueueNotEmpty();
         turnPosition = Math.max(turnPosition, 0);
-        entries[turnPosition] = entries[turnPosition].markTurnCompleted();
+        entries[turnPosition].markTurnCompleted();
 
         for (int offset = 1; offset < size; offset++) {
             int candidatePosition = (turnPosition + offset) % size;
-            if (!entries[candidatePosition].hasActedThisRound()) {
+            if (!entries[candidatePosition].isHasActedThisRound()) {
                 turnPosition = candidatePosition;
-                return entries[turnPosition].combatantId();
+                return entries[turnPosition].getId();
             }
         }
 
         roundNumber++;
         reloadQueue();
         turnPosition = 0;
-        return entries[turnPosition].combatantId();
+        return entries[turnPosition].getId();
     }
 
     public long getRoundNumber() {
         return roundNumber;
     }
 
-    public List<TurnEntry> getEntries() {
+    public List<Combatant> getEntries() {
         return List.copyOf(Arrays.asList(entries).subList(0, size));
     }
 
@@ -98,24 +98,20 @@ public class TurnQueue {
 
     private void reloadQueue() {
         for (int i = 0; i < size; i++) {
-            entries[i] = new TurnEntry(
-                    entries[i].combatantId(),
-                    entries[i].initiative(),
-                    false
-            );
+            entries[i].reloadTurnCompleted();
         }
     }
 
-    private void ensureCombatantNotPresent(TurnEntry turnEntry) {
+    private void ensureCombatantNotPresent(Combatant turnEntry) {
         if (Arrays.stream(entries, 0, size)
-                .anyMatch(entry -> entry.combatantId().equals(turnEntry.combatantId()))) {
+                .anyMatch(entry -> entry.getId().equals(turnEntry.getId()))) {
             throw new IllegalArgumentException(
-                    "Combatant already exists in turn queue: " + turnEntry.combatantId()
+                    "Combatant already exists in turn queue: " + turnEntry.getId()
             );
         }
     }
 
-    private void shiftArray(TurnEntry owner, int position) {
+    private void shiftArray(Combatant owner, int position) {
         for (int j = size; j > position; j--) {
             entries[j] = entries[j - 1];
         }
@@ -127,7 +123,7 @@ public class TurnQueue {
     }
 
     private void autoPlus() {
-        TurnEntry[] newArr = new TurnEntry[capacity * 2];
+        Combatant[] newArr = new Combatant[capacity * 2];
         System.arraycopy(entries, 0, newArr, 0, entries.length);
         entries = newArr;
         capacity *= 2;
