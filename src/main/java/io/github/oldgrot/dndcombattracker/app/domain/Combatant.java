@@ -15,8 +15,10 @@ public class Combatant {
     private String name;
     private final HitPoints hitPoints;
     private boolean surprised;
+    private int initiative;
+    private boolean hasActedThisRound;
 
-    public Combatant(UUID id, String name, HitPoints hitPoints){
+    public Combatant(UUID id, String name, HitPoints hitPoints, int initiative){
         this.id = Objects.requireNonNull(id, "Combatant ID cannot be null");
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException(
@@ -25,8 +27,17 @@ public class Combatant {
         }
         this.name = name.strip();
         this.surprised = false;
+        if(initiative < 0) {
+            throw new IllegalArgumentException("");
+        }
+        this.initiative = initiative;
+        this.hasActedThisRound = false;
 
         this.hitPoints = Objects.requireNonNull(hitPoints, "Combatant hit points cannot be null");
 
+    }
+
+    public void markTurnCompleted(){
+        this.hasActedThisRound = true;
     }
 }
